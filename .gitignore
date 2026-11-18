@@ -30,3 +30,6 @@ venv/
 *.blg
 *.fdb_latexmk
 *.fls
+
+# Local reference copy of folktables (pinned via pip to commit ebace19 instead)
+folktables-main/

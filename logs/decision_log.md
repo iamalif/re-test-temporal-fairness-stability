@@ -51,3 +51,34 @@ Format: ID, date (Europe/Stockholm), decision or event, reason, who.
   folktables issues/PRs created after 2023-01-01.
 - Decision: remaining checks are not a blocker for work on 2014-2018 data, reading, and harmonisation tables.
   They are a hard blocker for archiving the pre-registration, and are repeated just before archiving.
+
+## D006 - 2026-11-19 - Manual GitHub checks (researcher's browser screenshots)
+- folktables: last commit ebace19, 15 May 2024. Issues/PRs created after 2023-01-01: 19. None adds 2019+ survey years,
+  RELSHIPP, OCCP crosswalk or inflation adjustment. Relevant to us: #49 "Data download fails w/ 403 Forbidden" (Feb 2025) and
+  #50 archive.org mirror flag (download risk; we download files directly); #51 "Wrong matching between data and schema"
+  (Feb 2025; to read); #39/#52 NaN-to-0 postprocessing; #37 "Why restricted to 2014 onwards?"; #38 "support for years >= 2000".
+- folktables source (downloaded by researcher to folktables-main/, not committed): library and tests only.
+  No experiment code for the NeurIPS paper. Original experiment code: not found in this repository.
+- ClaudiuBu/benchmark-fairness-folktables: README read. Confirms CA only, LR, 2014 -> 2015-2018, ACSIncome + ACSEmployment,
+  sex and race (White vs non-White), 20 seeds, unweighted. Authors: Butnaru and Crisan. Cites folktables (Ding et al.) as data source.
+- Hnhy1806/fairness-over-time (single contributor, very active: last commit about 1 hour before the check, 22 commits, Streamlit app):
+  Texas, 2014 -> 2015-2017, LR and XGBoost, frozen, ExpGrad with equalized odds; DPD and EOD over 10 race/ethnicity x sex groups;
+  diagnoses label drift (share over $50k rising; split into real growth vs CPI-U inflation) vs feature drift (PSI/KS) and SHAP.
+  Its README states a mechanism matching our planned explanation (labels move, features barely move, fixed cutoff).
+  "Future work" lists: more years and states, with an occupation-code mapping to include 2018 onwards.
+  -> Closest substantive overlap so far for the explanation component, but one state, 2014-2017, not a paper (no paper linked).
+  -> Raises scoop risk: its stated next step is our extension. Cite as prior evidence; keep its result as a prediction to test US-wide.
+- PartowMoradiK/stable-rankings-shifting-fairness (FH Joanneum; paper "Stable Rankings, Shifting Fairness", arXiv link pending):
+  ACSPublicCoverage, train on one state-year, evaluate on 49 other state-years, XGBoost/RF, SHAP-based label-free monitoring.
+  Different question. Years not stated in README.
+- Exposure: the Hnhy1806 README shows 2014-2017 Texas results (original-cohort years, permitted). The PartowMoradiK README states
+  an outcome ("false positive rate gap changed by up to 13.4 points" across shifts; survey years not stated; PublicCoverage task).
+  Logged as seen. Not used to set any margin.
+- Still open: Google Scholar citing list (Since 2026); folktables issue #51 text.
+
+## D007 - 2026-11-19 - Repository home
+- Repository moved to github.com/iamalif/re-test-temporal-fairness-stability (public, researcher's choice).
+  The dap-alif copy is to be deleted. Pushes use a dedicated SSH key for iamalif, so the gh login (dap-alif) is unchanged.
+- Consequence noted: plan, decision log and prior-work notes are visible before the pre-registration is archived.
+  For double-blind review, the submission will link an anonymised mirror, and the repository name and title must not
+  appear in the manuscript.
