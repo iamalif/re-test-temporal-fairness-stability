@@ -1,0 +1,32 @@
+# Raw and derived data are never committed (Census files are 500-600 MB; GitHub limit is 100 MB).
+# Hashes of every raw file are committed instead, in logs/raw_sha256.txt.
+data/raw/*
+data/derived/*
+!data/raw/.gitkeep
+!data/derived/.gitkeep
+*.zip
+*.csv.gz
+*.parquet
+
+# Python / environments
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+.pytest_cache/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+
+# LaTeX build files
+*.aux
+*.log
+*.out
+*.synctex.gz
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
