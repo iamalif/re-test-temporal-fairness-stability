@@ -1,0 +1,148 @@
+\documentclass[10pt]{article}
+\usepackage{tmlr}
+% \usepackage[preprint]{tmlr}   % de-anonymised preprint version
+\input{math_commands.tex}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\input{numbers_reconstruction.tex}
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+
+\title{Does Fairness Stay Put? A Pre-Registered Re-Test of Temporal Fairness Stability on the American Community Survey, 2014--2024}
+
+\author{\name Anonymous authors \email anonymous@example.com}
+
+\def\month{MM}
+\def\year{2026}
+\def\openreview{\url{https://openreview.net/forum?id=XXXX}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A widely cited result from the introduction of the folktables benchmarks holds that a classifier trained on 2014 US Census data keeps a nearly constant demographic-parity violation over 2015--2018, and that a classifier satisfying demographic parity in 2014 continues to satisfy it, even as its accuracy declines; fairness appeared more stable over time than across states.
+We re-test this claim in a pre-registered study. First, we reconstruct the original experiment on 2014--2018 data: the published figures are reproduced closely only with more boosting iterations than reported and when each survey year is standardised separately, a preprocessing choice that accounts for about \ShareDeclinePerYearOnly{} of the published accuracy decline.
+Second, with every model fitted once on 2014 and frozen before any later data were opened, we evaluate the claim on 2019 and 2021--2024 against margins fixed from 2014--2018 alone, for race and sex, demographic parity and equality of opportunity, with and without survey weights.
+Third, we compare temporal and cross-state change on one scale and decompose temporal change into shifts in population composition and in the relation between features and income.
+\todo{one sentence of results after Stage B.}
+We release a harmonised 2014--2024 loader for folktables.
+\end{abstract}
+
+% ------------------------------------------------------------------
+\section{Introduction}
+
+Fairness interventions are usually certified once, on the data available at deployment, and then left in place while the population they act on changes.
+Whether such certificates remain valid is an empirical question with direct consequences for monitoring and audit practice.
+The most frequently cited evidence on this question for tabular decision-making comes from the paper that introduced the folktables datasets as a replacement for UCI Adult \citep{ding2021retiring}.
+Using American Community Survey (ACS) data for 2014--2018, its authors found that a gradient-boosted classifier trained in 2014 lost some accuracy in later years while its demographic-parity violation stayed essentially constant, and that a classifier satisfying demographic parity in 2014 continued to satisfy it in 2015--2018.
+Training and testing on different states, by contrast, gave unpredictable results, which led them to ask why fairness appears more stable over time than across space.
+
+This claim is cited in both directions: as evidence that fairness properties persist under temporal shift, and as evidence that bias shifts over time \todo{citations from the citing-literature search}.
+It also rests on a short window: five consecutive years, before the 2020 pandemic, the 2021--2023 inflation episode and several Census coding changes.
+Seven more years of the same survey are now public.
+
+We re-test the claim with three aims.
+(i) \emph{Reconstruct} the original experiment and report precisely what reproduces it (Section~\ref{sec:reconstruction}).
+(ii) \emph{Re-test} the claim on 2019 and 2021--2024 under a plan archived before any of those data were opened, with every model fitted on 2014 and frozen beforehand, and with margins derived from 2014--2018 only (Sections~\ref{sec:design}--\ref{sec:results}).
+(iii) \emph{Explain} the pattern: put temporal and geographic change on one scale and decompose temporal change into composition and conditional components, testing predictions from recent theory \citep{chen2022fairness,asiaee2026fairness}.
+
+A point of logic shapes the design.
+For a frozen classifier, the demographic-parity gap depends only on the distribution of the features within each group; the label never enters.
+Changes in how income maps to the label, including inflation of a nominal income threshold, therefore cannot move it.
+``Demographic parity stayed stable'' is thus a weak test on its own; the label-dependent quantities (accuracy, equality of opportunity) and the explanation of the temporal--geographic contrast carry the substantive weight, and we pre-registered them accordingly.
+
+\paragraph{Contributions.}
+\begin{itemize}
+\item A reconstruction of the original temporal experiment that matches the published accuracy curve to within \AccMaxDevPerYear{} in every year, with three reproduction findings: the reported model size does not reproduce the figures; about \ShareDeclinePerYearOnly{} of the published accuracy decline appears only when each year is standardised separately; and the year-to-year pattern of the published equality-of-opportunity results is not reproduced (Section~\ref{sec:reconstruction}).
+\item A pre-registered re-test on 2019 and 2021--2024 with eight confirmatory tests, three-way decisions (holds / violated / inconclusive) and survey-weighted replication (Sections~\ref{sec:design}--\ref{sec:results}).
+\item A common-scale comparison of temporal and geographic change and a decomposition of temporal change, testing the label-shift account of \citet{chen2022fairness} and the prior-shift account of \citet{asiaee2026fairness} on a decade of census data (Section~\ref{sec:explanation}).
+\item A harmonised loader for ACS 2014--2024 that handles the 2018 occupation recode, the 2019 relationship recode and discontinued place-of-birth codes, and documents what users of folktables as a temporal benchmark need to know (Appendix~\ref{app:harmonisation}).
+\end{itemize}
+
+% ------------------------------------------------------------------
+\section{Related work}
+\label{sec:related}
+
+\paragraph{Fairness under distribution shift.}
+\citet{chen2022fairness} bound the transfer of fairness under bounded shift and report, on folktables 2014--2018, that cross-state shift is mostly in the covariates while within-state temporal shift is dominated by the labels.
+\citet{asiaee2026fairness} show that under group-conditional prior shift equalized odds is invariant while demographic parity moves with prevalence.
+Benchmarks of tabular shift such as TableShift \citep{gardner2023tableshift} and WhyShift \citep{liu2023whyshift} include ACS tasks but focus on accuracy or on geographic and subgroup shift.
+
+\paragraph{Fairness drift and maintenance.}
+Clinical studies report fairness drift that is outcome- and group-specific \citep{davis2025emerging}.
+On folktables, \citet{butnaru2026fairness} benchmark maintenance policies on California 2014--2018 with logistic regression, and \citet{ceross2026finite} compare retraining policies for a frozen ACSEmployment model across later survey years.
+Recent work argues that fairness audits expire \citep{facchini2026auditing} and that audit frequency should track the speed of change \citep{liu2026fairness}.
+None of these re-tests the US-wide temporal claim of \citet{ding2021retiring} after 2018 or compares temporal and geographic change on one scale.
+\todo{add Fairness in the Flow (EWAF 2026), DriftFair, Wicker et al. 2023 once read in full; add Hnhy1806 repository as informal prior evidence.}
+
+\paragraph{Reproducibility in fair machine learning.}
+\todo{TMLR reproducibility-certified precedents; pre-registration in ML.}
+
+% ------------------------------------------------------------------
+\section{The claim and its original evidence}
+\label{sec:claim}
+
+\citet[Section 4.1]{ding2021retiring} train a gradient-boosted tree (GBM) on the 2014 US-wide ACSIncome task (predict whether personal income exceeds \$50{,}000 for employed adults) and evaluate it on 2014--2018.
+The demographic-parity (DP) gap is the difference in positive-prediction rates between White and Black individuals; Appendix~D.3 repeats the analysis for equality of opportunity (EO), the difference in true-positive rates.
+Three interventions are studied: post-processing by group-specific thresholds \citep{hardt2016equality}, the exponentiated-gradient reduction (ExpGrad) of \citet{agarwal2018reductions}, and learned fair representations (LFR) \citep{zemel2013learning}.
+Their Figure~4 shows accuracy falling from \PubAccFirst{} to \PubAccLast{} while the DP gap stays between \PubDPMin{} and \PubDPMax{}.
+
+% ------------------------------------------------------------------
+\section{Reconstruction on the original cohort (2014--2018)}
+\label{sec:reconstruction}
+
+\paragraph{Recovering the published values.}
+Figures~4 and~13 of the arXiv version are vector graphics.
+We recovered every plotted value from the drawing paths, mapping coordinates to data values with the axis ticks and matching series to legend entries by colour (precision about $10^{-4}$; code in the supplement).
+This gives exact published values to compare against instead of values read off the plots.
+
+\paragraph{Data.}
+We read the Census person files directly and apply the folktables filters; using the 50 states and Puerto Rico and excluding the District of Columbia, as folktables does, reproduces its row counts exactly (1{,}587{,}856 rows in 2014 and 1{,}664{,}500 in 2018) \todo{generate from data/derived metadata}.
+
+\paragraph{Findings.}
+Figure~\ref{fig:reconstruction} compares the published GBM series with ours.
+\begin{enumerate}
+\item \emph{Model size.} The appendix specifies 5 trees of depth 5 with exponential loss. That model is about \LiteralAccGapMean{} below the published accuracy in every year. With 100 trees the 2014 accuracy matches the published value, and 100 trees minimises the mean deviation over 2014--2018 among 5, 50, 100 and 200 trees.
+\item \emph{Preprocessing.} With one standardisation fitted in 2014 and kept fixed (``frozen''), accuracy falls by \AccDeclineCommon{} over 2014--2018, against \PubAccDecline{} published. If each year's features are standardised with a scaler fitted on that year, the reconstruction matches the published curve to within \AccMaxDevPerYear{} in every year (mean deviation \AccMeanDevPerYear{}; decline \AccDeclinePerYear{}, SD over five seeds \AccDeclineSDPerYear{}). Tree models are invariant to a common rescaling but not to year-specific ones, so this choice shifts a frozen model's inputs in later years. About \ShareDeclinePerYearOnly{} of the published decline is therefore attributable to preprocessing rather than to population change. We cannot confirm from the paper that this was the original pipeline; it is the variant that reproduces the published values.
+\item \emph{Demographic parity.} Under both variants the DP gap is flat (\DPMinPerYear--\DPMaxPerYear{}), as published, but about 0.01 below the published level (\PubDPMin--\PubDPMax).
+\item \emph{Interventions.} LFR is reproduced within \LFRAccMaxDevPerYear{} in accuracy and \LFRDPMaxDevPerYear{} in DP, and ExpGrad within \ExpGradAccMaxDevPerYear{} in accuracy. Our post-processing (fairlearn's threshold optimiser) achieves DP near zero, as published, but at higher accuracy than published (by up to \PostAccMaxDevPerYear{} for DP and \PostEOAccGap{} on average for EO); the original implementation is not specified in enough detail to resolve this.
+\item \emph{Equality of opportunity.} Our EO gap is flat (\EOMinPerYear--\EOMaxPerYear); the published gap ranges from \PubEOMin{} to \PubEOMax{} with a year-to-year pattern that also appears in the published ExpGrad and post-processing EO series. No variant we tried reproduces it.
+\end{enumerate}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/reconstruction.pdf}
+\caption{Reconstruction of \citet[Figure 4]{ding2021retiring}: unconstrained GBM trained on 2014, evaluated on 2014--2018. Published values recovered from the vector figure (grey). Ours: mean over five seeds with min--max band, 100 trees, with each year standardised separately (blue) or with a frozen 2014 standardisation (orange).}
+\label{fig:reconstruction}
+\end{figure}
+
+% ------------------------------------------------------------------
+\section{Pre-registered design}
+\label{sec:design}
+\todo{condense prereg sections 3--7: data and harmonisation, frozen models, C1--C8, margins (values), decision rules, weights.}
+
+\section{Results: does the claim hold after 2018?}
+\label{sec:results}
+\todo{Stage B.}
+
+\section{Why is fairness more stable over time than across states?}
+\label{sec:explanation}
+\todo{Stage B: C7, C8, decomposition, P1--P3.}
+
+\section{Discussion}
+\todo{implications for certificate validity and monitoring; benchmark practice (preprocessing per year, nominal labels, code breaks); limitations.}
+
+\subsubsection*{Reproducibility and pre-registration}
+\todo{archive date and SHA-256 of the plan, withheld links during review, deviations.}
+
+\bibliography{main}
+\bibliographystyle{tmlr}
+
+\appendix
+\section{Harmonisation of ACS codes, 2014--2024}
+\label{app:harmonisation}
+\todo{tables from results/harmonisation.}
+
+\end{document}

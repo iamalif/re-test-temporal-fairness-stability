@@ -39,3 +39,6 @@ docs/sources/
 
 # smoke-test outputs
 data/derived/smoke*
+
+# draft PDFs (rebuild from source)
+paper/*.pdf
