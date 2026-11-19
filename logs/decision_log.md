@@ -135,3 +135,25 @@ Format: ID, date (Europe/Stockholm), decision or event, reason, who.
   other model classes; harmonised loader released only as code with the paper, not as a contribution.
 - Go/no-go checkpoint 27 Nov 2026: if the confirmatory results, checks and draft are not at standard, submission moves to
   4 Jan 2027 or later. A quota note: a 2026 submission uses the 2026 budget if TMLR's year is the calendar year.
+
+## D012 - 2026-11-19 - Reconstruction findings so far (EXPLORATORY; 2014-2018 data only)
+- Environment: pyproject.toml + uv.lock (Python 3.12; numpy 2.5.5, pandas 3.1.1, scikit-learn 1.9.1, scipy 1.17.1,
+  fairlearn 0.15.0, aif360 0.6.1, statsmodels 0.15.0, folktables @ ebace19, pdfplumber).
+- Loader (src/data.py): reads raw Census zips, ACSIncome filters in folktables' order, DC excluded (not in folktables'
+  state list). Rows without Puerto Rico: 2014 1,577,844; 2015 1,594,081; 2016 1,608,420; 2017 1,636,312; 2018 1,655,429.
+  The brief's sandbox counts (2014 1,587,856; 2018 1,664,500) equal these plus Puerto Rico (10,012 and 9,071 implied),
+  i.e. folktables' 50 states + PR. PR files (csv_ppr.zip) added to the stage-1 download script.
+- Figure 4 of arXiv v3 is vector graphics. scripts/digitise_figure4.py recovers its plotted values (~1e-4 precision):
+  GBM accuracy 2014-2018 = .8231 .8127 .8094 .8023 .7977; DP = .1634 .1652 .1639 .1629 .1636.
+  Legend colours: GBM blue, ExpGrad purple, Postprocessing green, LFR orange. ExpGrad DP .013-.022; LFR DP .106-.108;
+  Postprocessing DP about 0. (Correction to brief: LFR barely reduces DP; ExpGrad does.)
+- Literal App. C GBM (exponential loss, 5 trees, depth 5) does not reproduce: 2018 in-year accuracy .723, DP .058
+  (Table 2: 81.7%, 17.7%). Exponential loss, depth 5, 100 trees: 2018 in-year .811 / .178.
+- Trained on 2014 (100 trees), common feature scale: accuracy 2014-2018 = .8232 .8172 .8148 .8117 .8068 - 2014 matches
+  Figure 4 but the decline is shallower. With features standardised by a scaler fitted separately on each year,
+  accuracy = .8232 .8148 .8093 .8042 .7987, within 0.002 of Figure 4 in every year. DP under either variant is
+  about .153-.161, about 0.008 below Figure 4.
+- Interpretation (tentative): the published accuracy decline is reproduced when each year is standardised separately,
+  which shifts a 2014 tree model's inputs in later years. If confirmed, part of the published accuracy decline is a
+  preprocessing effect, which bears directly on "fairness is more stable than accuracy". To be checked: seeds, Puerto
+  Rico, other tree counts, the three interventions, and Figure 13 (EO). Report neutrally as a reproduction finding.

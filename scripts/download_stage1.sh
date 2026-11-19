@@ -10,6 +10,8 @@ DICT=https://www2.census.gov/programs-surveys/acs/tech_docs/pums/data_dict/
 for Y in 2014 2015 2016 2017 2018; do
   mkdir -p data/raw/$Y
   [ -s data/raw/$Y/csv_pus.zip ] || curl -fL --retry 3 -o data/raw/$Y/csv_pus.zip "$PUMS/$Y/1-Year/csv_pus.zip"
+  # Puerto Rico is not in the US-wide file but is part of folktables' US-wide data (50 states + PR)
+  [ -s data/raw/$Y/csv_ppr.zip ] || curl -fL --retry 3 -o data/raw/$Y/csv_ppr.zip "$PUMS/$Y/1-Year/csv_ppr.zip"
 done
 
 # 2. Data dictionaries (documentation only; allowed for every year)

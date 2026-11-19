@@ -1,0 +1,22 @@
+[project]
+name = "fairness-stability-retest"
+version = "0.1.0"
+description = "Pre-registered re-test of temporal fairness stability (Ding et al., NeurIPS 2021) on ACS PUMS 2014-2024"
+requires-python = "==3.12.*"
+dependencies = [
+  "numpy",
+  "pandas",
+  "pyarrow",
+  "scikit-learn",
+  "scipy<1.18",          # AIF360 0.6.1 LFR passes `disp` to L-BFGS-B; removed in SciPy 1.18 (brief s.7)
+  "statsmodels",
+  "fairlearn",
+  "aif360==0.6.1",
+  "folktables @ git+https://github.com/socialfoundations/folktables@ebace19",
+  "openpyxl",
+  "matplotlib",
+  "pdfplumber",
+]
+
+[tool.uv]
+package = false
