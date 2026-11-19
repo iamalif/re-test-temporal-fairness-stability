@@ -33,3 +33,6 @@ venv/
 
 # Local reference copy of folktables (pinned via pip to commit ebace19 instead)
 folktables-main/
+
+# Third-party papers (copyrighted): kept locally, not redistributed
+docs/sources/

@@ -123,3 +123,15 @@ Format: ID, date (Europe/Stockholm), decision or event, reason, who.
   30 Nov 2026 to 3 Jan 2027.
 - Target: pre-registration archived in about 1-2 weeks; confirmatory runs, decomposition and paper drafted by late December;
   submission on or after 4 Jan 2027 when TMLR reopens.
+
+## D011 - 2026-11-19 - Target: submit before the TMLR pause (30 Nov 2026, 23:59 AoE)
+- Researcher's goal. Feasible only with a tightly scoped confirmatory core; quality gates are not relaxed.
+- Scope kept (confirmatory): re-test of Section 4.1 / App. D.3 on 2019 and 2021-2024 (DP, EO, accuracy; unconstrained,
+  post-processed, ExpGrad, LFR if runtime allows); persistence of the 2014-certified constraint; fairness vs accuracy stability
+  on a common scale; temporal vs geographic shift on one axis (large states).
+- Scope kept (pre-specified secondary): decomposition into recoding, label definition, composition (reweighting) and
+  conditional label change; survey-weighted vs unweighted.
+- Deferred (not in this paper): certificate-expiry/time-to-violation framing beyond a descriptive remark; other folktables tasks;
+  other model classes; harmonised loader released only as code with the paper, not as a contribution.
+- Go/no-go checkpoint 27 Nov 2026: if the confirmatory results, checks and draft are not at standard, submission moves to
+  4 Jan 2027 or later. A quota note: a 2026 submission uses the 2026 budget if TMLR's year is the calendar year.
