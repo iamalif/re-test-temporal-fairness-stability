@@ -1,0 +1,141 @@
+"""Stage A analysis (original cohort 2014-2018 only): metrics of the frozen models, the pre-registered
+margins and yardsticks, and the recoding-artefact check. Writes results/stage_a/.
+
+Margins (pre-registration section 6), all computed here from 2014-2018 data and then frozen:
+- delta[m]   temporal margin for the unconstrained model: max over t in 2015-2018 of |mean over seeds of
+             m(t) - m(2014)|, floored at FLOOR. It is the drift that the original paper called "essentially constant".
+- epsilon[g] constraint tolerance for the post-processed DP model of group g: max over 2014-2018 of
+             |mean over seeds of DP(t)|, floored at FLOOR.
+- G[m]       geographic yardstick: median over ordered pairs of the 20 largest states (s -> s', 2014) of the
+             noise-corrected |m(s -> s') - m(s -> s)| for the per-state unconstrained models.
+Both unweighted (primary) and weighted versions are written.
+"""
+import json
+import sys
+from itertools import permutations
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+import numpy as np
+import pandas as pd
+
+from analysis import METRICS, REP, Estimate, change, noise_corrected_abs, unweighted, weighted
+from common import label, load_year, state_split
+from pipeline import MANIFEST, SEEDS, SMOKE, load_pred
+
+YEARS = (2014, 2015, 2016, 2017, 2018)
+FLOOR = 0.01
+OUT = ROOT / "results" / "stage_a"
+if __import__("os").environ.get("RT_SMOKE_ROWS"):
+    OUT = ROOT / "data" / "derived" / "smoke_stage_a"
+
+
+def frame(year):
+    df = load_year(year, columns=["PINCP", "RAC1P", "SEX", "ST", "PWGTP"] + REP)
+    if SMOKE:                       # same fixed subsample as the pipeline's smoke mode
+        df = df.sample(n=int(SMOKE), random_state=0).reset_index(drop=True)
+    return df
+
+
+def estimates(pred, y, df):
+    return (Estimate.from_unweighted(unweighted(pred, y, df)),
+            Estimate.from_weighted(weighted(pred, y, df), len(y)))
+
+
+def main():
+    OUT.mkdir(parents=True, exist_ok=True)
+    manifest = json.loads(MANIFEST.read_text())
+    us_models = [n for n in manifest if not n.startswith("state")]
+    states = sorted({int(n[5:].split("_")[0]) for n in manifest if n.startswith("state")})
+    frames = {y: frame(y) for y in YEARS}
+    labels = {y: label(frames[y]) for y in YEARS}
+    rows, est = [], {}
+    # ---- US-wide frozen models ----
+    for name in us_models:
+        seed = manifest[name]["seed"]
+        test14 = state_split(frames[2014], seed)
+        for y in YEARS:
+            df, yy = frames[y], labels[y]
+            pred = load_pred(name, y, len(df))
+            keep = test14 if y == 2014 else np.ones(len(df), bool)
+            eu, ew = estimates(pred[keep], yy[keep], df[keep].reset_index(drop=True))
+            est[(name, y)] = (eu, ew)
+            for wt, e in (("unweighted", eu), ("weighted", ew)):
+                for m in METRICS:
+                    rows.append(dict(model=name, year=y, weighting=wt, metric=m, value=e.values[m], se=e.se(m)))
+    tab = pd.DataFrame(rows)
+    tab.to_csv(OUT / "metrics_us_2014_2018.csv", index=False)
+
+    margins = {"floor": FLOOR, "unweighted": {}, "weighted": {}}
+    for wi, wt in enumerate(("unweighted", "weighted")):
+        mg = margins[wt]
+        # delta: unconstrained model, mean over seeds of the change from 2014
+        mean_change = {m: [np.mean([change(est[(f"gbm_s{s}", y)][wi], est[(f"gbm_s{s}", 2014)][wi])[0][m]
+                                    for s in SEEDS]) for y in YEARS[1:]] for m in METRICS}
+        mg["delta"] = {m: max(max(abs(v) for v in mean_change[m]), FLOOR) for m in METRICS}
+        mg["delta_raw_max_change"] = {m: max(abs(v) for v in mean_change[m]) for m in METRICS}
+        mg["mean_change_by_year"] = {m: dict(zip(map(str, YEARS[1:]), mean_change[m])) for m in METRICS}
+        # epsilon: post-processed DP models
+        mg["epsilon"], mg["epsilon_raw"] = {}, {}
+        for g in ("race", "sex"):
+            dp = [abs(np.mean([est[(f"post_dp_{g}_s{s}", y)][wi].values[f"dp_{g}"] for s in SEEDS])) for y in YEARS]
+            mg["epsilon_raw"][g] = max(dp)
+            mg["epsilon"][g] = max(max(dp), FLOOR)
+
+    # ---- geographic yardstick (2014, per-state models) ----
+    df14, y14 = frames[2014], labels[2014]
+    st14 = df14["ST"].to_numpy()
+    test14 = state_split(df14, 0)
+    geo_rows, own = [], {}
+    for s in states:
+        pred = load_pred(f"state{s}_gbm_s0", 2014, len(df14))
+        m_own = (st14 == s) & test14
+        own[s] = estimates(pred[m_own], y14[m_own], df14[m_own].reset_index(drop=True))
+        for t in states:
+            if t == s:
+                continue
+            m_t = st14 == t
+            e_t = estimates(pred[m_t], y14[m_t], df14[m_t].reset_index(drop=True))
+            for wi, wt in enumerate(("unweighted", "weighted")):
+                d, cov = change(e_t[wi], own[s][wi])
+                for k, m in enumerate(METRICS):
+                    se = float(np.sqrt(cov[k, k]))
+                    geo_rows.append(dict(source=s, target=t, weighting=wt, metric=m, delta=d[m], se=se,
+                                         abs_corrected=noise_corrected_abs(d[m], se)))
+    geo = pd.DataFrame(geo_rows)
+    geo.to_csv(OUT / "geographic_pairs_2014.csv", index=False)
+    for wt in ("unweighted", "weighted"):
+        g = geo[geo.weighting == wt].groupby("metric")["abs_corrected"].median()
+        margins[wt]["G"] = {m: float(g[m]) for m in METRICS}
+        # per-state reference for C8: median geographic change from each source state
+        margins[wt]["G_by_source_state"] = {
+            m: {str(s): float(v) for s, v in
+                geo[(geo.weighting == wt) & (geo.metric == m)].groupby("source")["abs_corrected"].median().items()}
+            for m in ("dp_race", "eo_race", "dp_sex", "accuracy")}
+    margins["states"] = states
+
+    # ---- recoding artefact at 2018 (raw codes vs harmonised), seed 0 ----
+    rec = {}
+    for y in YEARS:
+        eu_raw, eu_h = est[("rawgbm_s0", y)][0], est[("gbm_s0", y)][0]
+        rec[str(y)] = {m: {"raw": eu_raw.values[m], "harmonised": eu_h.values[m]} for m in METRICS}
+    (OUT / "recoding_check.json").write_text(json.dumps(rec, indent=1))
+    (OUT / "margins.json").write_text(json.dumps(margins, indent=1))
+
+    # ---- console summary ----
+    pd.set_option("display.width", 220)
+    u = tab[(tab.weighting == "unweighted") & tab.model.isin(
+        ["gbm_s0", "post_dp_race_s0", "post_dp_sex_s0", "expgrad_dp_race_s0", "lfr_race_s0", "rawgbm_s0"])]
+    print(u.pivot_table(index=["model", "metric"], columns="year", values="value").round(4).to_string())
+    for wt in ("unweighted", "weighted"):
+        mg = margins[wt]
+        print(f"\n[{wt}] delta:", {k: round(v, 4) for k, v in mg["delta"].items()},
+              "\n  raw max change:", {k: round(v, 4) for k, v in mg["delta_raw_max_change"].items()},
+              "\n  epsilon:", {k: round(v, 4) for k, v in mg["epsilon_raw"].items()},
+              "\n  G:", {k: round(v, 4) for k, v in mg["G"].items()})
+
+
+if __name__ == "__main__":
+    main()

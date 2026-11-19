@@ -210,3 +210,23 @@ Format: ID, date (Europe/Stockholm), decision or event, reason, who.
       model applies its training-time preprocessing; the per-year variant is reported as the reconstruction of the
       original pipeline;
   (3) the postprocessing and EO discrepancies are reported neutrally as reproduction findings.
+
+## D016 - 2026-11-19 - Pre-registration draft v0.1 and the two-stage design
+- Design: Stage A (before archiving) fits every final model once on 2014, saves it with a SHA-256 hash
+  (results/models_manifest.json), predicts 2014-2018 and computes the margins (results/stage_a/margins.json).
+  Stage B (after archiving) only evaluates the same frozen models on 2019 and 2021-2024. src/data.py refuses any
+  year after 2018 until prereg/ARCHIVED exists (checked: guard raises).
+- Confirmatory family C1-C8 (prereg Section 5), Bonferroni alpha 0.05/8, three-way decisions; margins defined by
+  rules on 2014-2018 data (delta: largest 2014-2018 drift; epsilon: largest post-processed DP; floor 0.01;
+  G: median noise-corrected cross-state change over the 20 largest states).
+- Small sensitive-feature categories are pooled for the interventions (>= 100 training rows and >= 20 of each label
+  to stay separate; pooled group assigned to the largest category if itself too small). Found necessary in the smoke
+  test (degenerate labels in a tiny race group).
+- Correction to the brief: incomes of $50,000 or more are not all multiples of $1,000 (2014-2018: about 80% are),
+  because PINCP sums separately rounded components. Inflation- and base-rate-anchored thresholds are therefore put
+  on the $1,000 grid with the nominal label's strict inequality, rather than "off the grid".
+- ADJINC is a single value per year file (checked 2014-2018).
+- Code written and smoke-tested end to end on 20,000-row subsamples of 2014-2018 (2017/2018 standing in for
+  2019/2024): src/pipeline.py, src/analysis.py (unit-tested against analytic binomial SEs), scripts/stage_a.py,
+  scripts/stage_a_analysis.py, scripts/stage_b_confirmatory.py. Secondary-analysis code (Section 8) still to write.
+- Independent review brief for the second AI: docs/review_brief_prereg_v0.1.md.

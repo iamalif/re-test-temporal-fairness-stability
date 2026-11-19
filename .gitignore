@@ -36,3 +36,6 @@ folktables-main/
 
 # Third-party papers (copyrighted): kept locally, not redistributed
 docs/sources/
+
+# smoke-test outputs
+data/derived/smoke*
