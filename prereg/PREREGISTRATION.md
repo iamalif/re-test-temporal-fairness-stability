@@ -52,7 +52,9 @@ fairness is more stable over time than across states when both are measured on o
   occupation as 25 major groups (label prefixes of each year's own dictionary; 8 whole-code cross-group moves in the
   official crosswalk assigned their 2018 group); relationship mapped to RELP categories with roomer/boarder,
   housemate/roommate and other nonrelative merged (RELSHIPP mapped to the same categories from 2019); place of birth
-  with three discontinued codes merged into regional residual codes. Missing values become 0, as in folktables.
+  with three discontinued codes merged into regional residual codes (Census variable-change notes: Tunisia
+collapsed into "Northern Africa, not specified" from 2022; South Sudan deleted in 2024; Cyprus code used only
+through 2016, destination not stated, merged into "Other Europe, not specified"; about 60–190 rows a year). Missing values become 0, as in folktables.
   The harmonised scheme leaves a residual 2018 shift of at most 0.5 points in any occupation group's share
   (Section 9, recoding check).
 - **Race comparability:** the race question and coding changed in 2020 (Census: compare with caution). Race-based
@@ -65,9 +67,10 @@ All models are trained on the 2014 training split (within-state 80/20 random spl
 preprocessing. Their SHA-256 hashes are in `results/models_manifest.json` (hash of that file: ⟨A⟩).
 
 - **Base model (reconstruction rule, D015):** `GradientBoostingClassifier(loss="exponential", max_depth=5,
-  n_estimators=100)`. The 5 trees stated in the paper do not reproduce its figures (accuracy about 0.11 lower);
-  among {5, 50, 100, 200} trees, 100 gives the smallest mean absolute accuracy deviation from Figure 4 (0.0012 over
-  2014–2018, 5 seeds) under the preprocessing that best reproduces the figure.
+  n_estimators=100)`. The 5 trees stated in the paper do not reproduce its figures (accuracy 0.10–0.15 below the
+  published values in every year and seed). Under the preprocessing that reproduces the published accuracy curve
+  (per-year standardisation), 100 trees gives the smallest mean absolute deviation from it among 50, 100 and 200
+  trees (about 0.001, against 0.004 and 0.002); with 100 trees the 2014 accuracy matches the published value.
 - **Preprocessing (primary):** one standardisation fitted on the 2014 training split and frozen, as a deployed model
   would use it. (Trees are invariant to it; it matters for LFR.) The original pipeline appears to have standardised
   each year separately (D012/D015); that variant is reported as a secondary analysis (Section 8.6).
@@ -126,9 +129,13 @@ noise-corrected |DP_race(s → s′) − DP_race(s → s)| in 2014 (Section 6). 
 ## 7. Inference and decision rules
 
 ### 7.1 Standard errors
-Unweighted metrics are smooth functions of group means; variances come from influence values (equivalent to the
-binomial variances of the original Newcombe and Clopper–Pearson intervals in large samples). Estimates for different
-years use independent samples, so variances add. Inference is conditional on the frozen models.
+Unweighted metrics are smooth functions of group means; variances come from influence values. Because the ACS
+samples households, influence values are summed within each household (state code and SERIALNO) before squaring,
+so that correlation between members of the same household is accounted for (with independent persons this reduces to
+the binomial variances behind the original Newcombe and Clopper–Pearson intervals; a simulation with clustered
+outcomes confirmed that the clustered standard error matches the empirical one while the unclustered one is too
+small). Estimates for different years use independent samples, so variances add. Inference is conditional on the
+frozen models.
 
 ### 7.2 Decisions
 Family-wise error 0.05 over C1–C8 with Bonferroni correction: α = 0.05/8 = 0.00625 per test.
@@ -160,8 +167,9 @@ values for 2021–2024 are shown separately with the comparability caveat.
 
 8.3 **Label definitions** (accuracy and EO; DP of a frozen model does not depend on the label):
 (a) nominal `PINCP > 50000`; (b) `>=` instead of `>`; (c) inflation-anchored: PINCP > T_t, with T_t = 50000 ×
-(ADJINC₂₀₁₄ / ADJINC_t) × (CPI_t / CPI₂₀₁₄) rounded to the nearest $1,000, where CPI is the BLS R-CPI-U-RS annual
-average and ADJINC the year's single income adjustment factor. Rounding to the $1,000 grid keeps the strict-inequality
+(ADJINC₂₀₁₄ / ADJINC_t) × (CPI_t / CPI₂₀₁₄) rounded to the nearest $1,000, where CPI is the annual average of the BLS
+retroactive series R-CPI-U-RS (file `data/raw/cpi/r-cpi-u-rs-allitems.xlsx`, downloaded 19 Nov 2026, hash in
+`logs/raw_sha256.txt`) and ADJINC the year's single income adjustment factor. Rounding to the $1,000 grid keeps the strict-inequality
 convention of the nominal label at a heaped value (in 2014–2018 about 80% of incomes of $50,000 or more are multiples
 of $1,000); in 2014 the label equals the nominal one; (d) base-rate-anchored: in each year, the threshold on the
 $1,000 grid (strict inequality) whose unweighted positive rate is closest to the 2014 nominal positive rate.
@@ -173,7 +181,9 @@ on the harmonised features (race and sex included); 2014 rows are reweighted by 
 99.9th percentile). The reweighted 2014 metric is the counterfactual "year-t features, 2014 labels given features".
 Composition = counterfactual − 2014; conditional change = year t − counterfactual. **Built-in check:** a frozen
 model's DP depends only on the features, so the DP conditional component must be near zero; an absolute value above
-0.005 flags the reweighting as inadequate, and the decomposition is then reported as unreliable.
+0.005 flags the reweighting as inadequate, and the decomposition is then reported as unreliable. Before archiving,
+the procedure is run on 2014 → 2018 (original cohort) to confirm that the check passes on real data
+(`results/stage_a/decomposition_2018_check.json`).
 Exploratory extension: Shapley values over feature blocks.
 
 8.5 **Theory predictions:**

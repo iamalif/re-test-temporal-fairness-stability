@@ -17,8 +17,8 @@ sys.path.insert(0, str(ROOT / "src"))
 import numpy as np
 import pandas as pd
 
-from analysis import (METRICS, REP, Estimate, change, compare_stability, noise_corrected_abs, sign_test, three_way,
-                      unweighted, weighted)
+from analysis import (METRICS, REP, Estimate, change, compare_stability, household_ids, noise_corrected_abs,
+                      sign_test, three_way, unweighted, weighted)
 from common import label, load_year, state_split
 from pipeline import MANIFEST, SEEDS, SMOKE, load_pred
 
@@ -35,7 +35,7 @@ if SMOKE:   # code test on original-cohort years only: 2017 and 2018 stand in fo
 
 
 def frame(year):
-    df = load_year(year, columns=["PINCP", "RAC1P", "SEX", "ST", "PWGTP"] + REP)
+    df = load_year(year, columns=["PINCP", "RAC1P", "SEX", "ST", "SERIALNO", "PWGTP"] + REP)
     if SMOKE:
         df = df.sample(n=int(SMOKE), random_state=0).reset_index(drop=True)
     return df
@@ -49,7 +49,7 @@ def estimate(name, year, df, seed=0, rows=None, rule=">"):
         keep &= rows
     y = label(df, rule=rule)
     sub = df[keep].reset_index(drop=True)
-    return (Estimate.from_unweighted(unweighted(pred[keep], y[keep], sub)),
+    return (Estimate.from_unweighted(unweighted(pred[keep], y[keep], sub), household_ids(sub)),
             Estimate.from_weighted(weighted(pred[keep], y[keep], sub), int(keep.sum())))
 
 

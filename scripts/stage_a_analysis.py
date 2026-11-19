@@ -21,7 +21,7 @@ sys.path.insert(0, str(ROOT / "src"))
 import numpy as np
 import pandas as pd
 
-from analysis import METRICS, REP, Estimate, change, noise_corrected_abs, unweighted, weighted
+from analysis import METRICS, REP, Estimate, change, household_ids, noise_corrected_abs, unweighted, weighted
 from common import label, load_year, state_split
 from pipeline import MANIFEST, SEEDS, SMOKE, load_pred
 
@@ -33,14 +33,14 @@ if __import__("os").environ.get("RT_SMOKE_ROWS"):
 
 
 def frame(year):
-    df = load_year(year, columns=["PINCP", "RAC1P", "SEX", "ST", "PWGTP"] + REP)
+    df = load_year(year, columns=["PINCP", "RAC1P", "SEX", "ST", "SERIALNO", "PWGTP"] + REP)
     if SMOKE:                       # same fixed subsample as the pipeline's smoke mode
         df = df.sample(n=int(SMOKE), random_state=0).reset_index(drop=True)
     return df
 
 
 def estimates(pred, y, df):
-    return (Estimate.from_unweighted(unweighted(pred, y, df)),
+    return (Estimate.from_unweighted(unweighted(pred, y, df), household_ids(df)),
             Estimate.from_weighted(weighted(pred, y, df), len(y)))
 
 

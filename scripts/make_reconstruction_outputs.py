@@ -66,8 +66,15 @@ def macros(rs, f4, f13):
     m = {}
     def put(k, v, fmt="{:.3f}"):
         m[k] = fmt.format(v)
-    lit = series(rs, "gbm", "none", "common", 5, "accuracy")
-    put("LiteralAccGapMean", np.mean(np.array(f4["GBM"]["accuracy"]) - lit.mean(0)), "{:.2f}")
+    lit = np.vstack([series(rs, "gbm", "none", sc, 5, "accuracy") for sc in ("common", "per_year")])
+    gaps = np.array(f4["GBM"]["accuracy"])[None, :] - lit          # every seed, scaling and year
+    put("LiteralAccGapMean", gaps.mean(), "{:.2f}")
+    put("LiteralAccGapMin", gaps.min(), "{:.2f}")
+    put("LiteralAccGapMax", gaps.max(), "{:.2f}")
+    for sc, tag in (("per_year", "PerYear"), ("common", "Common")):
+        for n in (50, 100, 200):
+            acc = series(rs, "gbm", "none", sc, n, "accuracy").mean(0)
+            put(f"AccMeanDevTrees{ {50: 'L', 100: 'C', 200: 'CC'}[n] }{tag}", np.abs(acc - np.array(f4["GBM"]["accuracy"])).mean(), "{:.4f}")
     for sc, tag in (("per_year", "PerYear"), ("common", "Common")):
         acc = series(rs, "gbm", "none", sc, 100, "accuracy")
         dp = series(rs, "gbm", "none", sc, 100, "dp")

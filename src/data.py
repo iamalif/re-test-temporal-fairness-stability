@@ -7,7 +7,8 @@ Design notes
 - Geography follows folktables: the 50 states and Puerto Rico; DC (ST=11) is excluded because folktables'
   state list omits it. The US-wide csv_pus.zip holds the 50 states and DC; Puerto Rico is a separate file
   (csv_ppr.zip), read when present.
-- Column names are upper-cased (2014-2016 files use lower-case replicate-weight names).
+- Column names are upper-cased (2014-2016 files use lower-case replicate-weight names); STATE (2023 onward)
+  is renamed to ST. Every required column is checked on reading.
 - No recoding happens here. Harmonisation of codes across years is a separate, documented step.
 - Years after 2018 are refused until prereg/ARCHIVED exists (created only after third-party archiving).
 """
@@ -32,7 +33,8 @@ PREREG_ARCHIVED_FLAG = ROOT / "prereg" / "ARCHIVED"
 FEATURES = ["AGEP", "COW", "SCHL", "MAR", "OCCP", "POBP", "RELP", "WKHP", "SEX", "RAC1P"]
 EXTRA = ["SERIALNO", "SPORDER", "ST", "PINCP", "ADJINC", "PWGTP", "HISP", "RELSHIPP"]
 REPWEIGHTS = [f"PWGTP{i}" for i in range(1, 81)]
-WANTED = set(FEATURES + EXTRA + REPWEIGHTS)
+WANTED = set(FEATURES + EXTRA + REPWEIGHTS) | {"STATE"}   # ST is named STATE from 2023 (dictionaries)
+REQUIRED = set(FEATURES + REPWEIGHTS + ["SERIALNO", "SPORDER", "ST", "PINCP", "ADJINC", "PWGTP"]) - {"RELP"}
 STRING_COLS = {"SERIALNO"}
 EXCLUDED_ST = {11}  # District of Columbia: not in folktables' state list
 
@@ -59,6 +61,10 @@ def _read_member_filtered(zf: zipfile.ZipFile, name: str, counts: dict) -> pd.Da
             chunksize=200_000,
         ):
             chunk.columns = [c.upper() for c in chunk.columns]
+            chunk = chunk.rename(columns={"STATE": "ST"})
+            missing = REQUIRED - set(chunk.columns)
+            if missing or not ({"RELP", "RELSHIPP"} & set(chunk.columns)):
+                raise KeyError(f"{name}: required columns missing: {sorted(missing)} (or RELP/RELSHIPP)")
             kept, steps = acsincome_universe(chunk)
             for k, v in steps.items():
                 counts[k] = counts.get(k, 0) + v

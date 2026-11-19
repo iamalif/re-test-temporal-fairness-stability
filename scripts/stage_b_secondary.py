@@ -24,7 +24,7 @@ from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import StratifiedKFold
 
-from analysis import METRICS, Estimate, point, three_way, unweighted
+from analysis import METRICS, Estimate, household_ids, point, three_way, unweighted
 from common import load_year, state_split
 from harmonise import HARMONISED_FEATURES
 from pipeline import MODELS, SMOKE, Scaler, design, load_pred, year_frame
@@ -173,7 +173,7 @@ def main():
         eps = max(max(abs(v) for v in vals), margins["floor"])
         f = frames[Y_RACE]
         u = unweighted(load_pred(name, Y_RACE, len(f)), labels_for(f, Y_RACE, thr)["nominal"], f)
-        e = Estimate.from_unweighted(u)
+        e = Estimate.from_unweighted(u, household_ids(f))
         # LFR does not remove DP; its band is [-eps, eps] around 0 as for the other models, per section 8.2
         band[name] = three_way(e.values["dp_race"], e.se("dp_race"), eps, ALPHA) | {"dp_2014_2018": vals}
     res["8.2_other_interventions"] = band
@@ -186,7 +186,7 @@ def main():
                      "expgrad_dp_race_s0", "lfr_race_s0"):
             r = rows_for(y, 0, f); sub = f[r].reset_index(drop=True); pred = load_pred(name, y, len(f))[r]
             for lk, yy in labels_for(sub, y, thr).items():
-                e = Estimate.from_unweighted(unweighted(pred, yy, sub))
+                e = Estimate.from_unweighted(unweighted(pred, yy, sub), household_ids(sub))
                 for m in METRICS:
                     rows.append(dict(model=name, year=y, label=lk, metric=m, value=e.values[m], se=e.se(m)))
     pd.DataFrame(rows).to_csv(OUT / "secondary_labels.csv", index=False)

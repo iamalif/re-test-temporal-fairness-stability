@@ -105,7 +105,11 @@ def main():
     done = set()
     if OUT.exists():
         for line in OUT.read_text().splitlines():
-            r = json.loads(line)
+            try:
+                r = json.loads(line)
+            except json.JSONDecodeError:
+                print("skipping an incomplete line in runs.jsonl (interrupted write)", flush=True)
+                continue
             if r.get("status") == "ok":
                 done.add(r["key"])
     todo = [j for j in plans()[a.plan] if job_key(j) not in done]

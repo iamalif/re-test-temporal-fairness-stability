@@ -4,6 +4,7 @@ Every metric is a smooth function of group means, so its sampling variance is co
 for an unweighted estimate theta with influence values phi_i, Var = sum(phi_i^2). Weighted estimates use the
 person weight PWGTP and the 80 replicate weights (Census successive-difference replication):
 Var = 4/80 * sum_r (theta_r - theta)^2, with covariances computed the same way.
+Unweighted variances are clustered by household (influence values summed within household before squaring).
 Estimates for different survey years come from independent samples, so variances of differences add.
 All inference is conditional on the fitted (frozen) model.
 """
@@ -44,6 +45,22 @@ def unweighted(pred: np.ndarray, y: np.ndarray, df: pd.DataFrame) -> dict:
     return out
 
 
+def point(pred: np.ndarray, y: np.ndarray, df: pd.DataFrame, w: np.ndarray | None = None) -> dict:
+    """Point estimates of all metrics with arbitrary non-negative row weights (None = unweighted).
+    Used for reweighted (counterfactual) estimates in the decomposition."""
+    pred, y = pred.astype(float), y.astype(bool)
+    w = np.ones(len(y)) if w is None else np.asarray(w, float)
+    out = {"accuracy": float(np.average(pred == y, weights=w))}
+    for name, (g1, g2) in _masks(df, y).items():
+        out[name] = float(np.average(pred[g1], weights=w[g1]) - np.average(pred[g2], weights=w[g2]))
+    for g, (m1, m2) in {"race": _masks(df, y)["dp_race"], "sex": _masks(df, y)["dp_sex"]}.items():
+        for tag, m in (("1", m1), ("2", m2)):
+            out[f"base_rate_{g}{tag}"] = float(np.average(y[m], weights=w[m]))
+            out[f"tpr_{g}{tag}"] = float(np.average(pred[m & y], weights=w[m & y]))
+            out[f"fpr_{g}{tag}"] = float(np.average(pred[m & ~y], weights=w[m & ~y]))
+    return out
+
+
 def weighted(pred: np.ndarray, y: np.ndarray, df: pd.DataFrame) -> dict:
     """Weighted point estimates and their 80 replicate estimates, as {metric: (theta, theta_r[80])}.
     Each metric is a ratio of weighted sums (or a difference of two ratios), computed as w @ A / w @ G."""
@@ -75,10 +92,16 @@ class Estimate:
         self.values, self.cov, self.n = values, cov, n
 
     @classmethod
-    def from_unweighted(cls, u: dict):
+    def from_unweighted(cls, u: dict, cluster=None):
+        """Covariance from influence values. With `cluster` (household ids), influence values are summed within
+        clusters first, so that correlation between members of the same household is accounted for."""
         names = list(METRICS)
         Phi = np.vstack([u[m][1] for m in names])
-        return cls({m: float(u[m][0]) for m in names}, Phi @ Phi.T, Phi.shape[1])
+        n = Phi.shape[1]
+        if cluster is not None:
+            codes, uniq = pd.factorize(np.asarray(cluster))
+            Phi = np.vstack([np.bincount(codes, weights=row, minlength=len(uniq)) for row in Phi])
+        return cls({m: float(u[m][0]) for m in names}, Phi @ Phi.T, n)
 
     @classmethod
     def from_weighted(cls, wt: dict, n: int):
@@ -134,3 +157,8 @@ def sign_test(indicators: list[bool], alpha: float) -> dict:
     decision = ("temporal more stable" if (p <= alpha and k > n / 2)
                 else "geographic more stable" if (p <= alpha and k < n / 2) else "inconclusive")
     return {"k": k, "n": n, "p_two_sided": p, "alpha": alpha, "decision": decision}
+
+
+def household_ids(df: pd.DataFrame) -> np.ndarray:
+    """Household identifier for clustering: state code and SERIALNO (Puerto Rico has its own file)."""
+    return (df["ST"].astype(int).astype(str) + "_" + df["SERIALNO"].astype(str)).to_numpy()
