@@ -6,6 +6,8 @@
       with the built-in DP check (|DP conditional component| <= 0.005)
   8.5 theory predictions P1-P3 (P1 uses per-state domain-classifier AUCs; slow: about 400 classifiers)
   8.6 original-pipeline view: the seed-0 GBM with each year standardised separately
+  8.8 per-state DP-post-processed models: |DP| in the own state later vs in other states in 2014
+  8.9 models deployed in 2018 instead of 2014: change from 2018 to each later year
 Writes results/stage_b/secondary_*.json / .csv.  Usage: uv run python scripts/stage_b_secondary.py [--skip-p1]
 """
 import argparse
@@ -27,7 +29,7 @@ from sklearn.model_selection import StratifiedKFold
 from analysis import METRICS, Estimate, household_ids, point, three_way, unweighted
 from common import load_year, state_split
 from harmonise import HARMONISED_FEATURES
-from pipeline import MODELS, SMOKE, Scaler, design, load_pred, year_frame
+from pipeline import MODELS, SEEDS, SMOKE, Scaler, design, load_pred, year_frame
 
 ALPHA = 0.05 / 8
 Y_RACE, Y_SEX = 2019, 2024
@@ -176,6 +178,15 @@ def main():
         e = Estimate.from_unweighted(u, household_ids(f))
         # LFR does not remove DP; its band is [-eps, eps] around 0 as for the other models, per section 8.2
         band[name] = three_way(e.values["dp_race"], e.se("dp_race"), eps, ALPHA) | {"dp_2014_2018": vals}
+    # EO post-processing (race at Y_RACE, sex at Y_SEX): |EO| within its own 2014-2018 band (seed means)
+    for g, yr in (("race", Y_RACE), ("sex", Y_SEX)):
+        f = frames[yr]; yy = labels_for(f, yr, thr)["nominal"]; vals, ses = [], []
+        for sd in SEEDS:
+            e = Estimate.from_unweighted(unweighted(load_pred(f"post_eo_{g}_s{sd}", yr, len(f)), yy, f),
+                                         household_ids(f))
+            vals.append(e.values[f"eo_{g}"]); ses.append(e.se(f"eo_{g}"))
+        band[f"post_eo_{g}"] = three_way(float(np.mean(vals)), float(np.mean(ses)),
+                                         margins["unweighted"]["epsilon_eo"][g], ALPHA) | {"year": yr}
     res["8.2_other_interventions"] = band
 
     # 8.3 label definitions: accuracy and EO of every seed-0 model, every year
@@ -213,6 +224,46 @@ def main():
         pred = fz.model.predict(Xs[r]).astype(bool)
         view[y] = point(pred, labels_for(f[r], y, thr)["nominal"], f[r].reset_index(drop=True))
     res["8.6_per_year_scaling"] = view
+
+    # 8.8 per-state DP-post-processed models: does a constraint certified in one state transfer better over time
+    # (own state, Y_RACE) than across states (other states, 2014)? Descriptive; unweighted point estimates.
+    f14, ft = frames[2014], frames[Y_RACE]
+    st14, stt = f14["ST"].to_numpy(), ft["ST"].to_numpy()
+    test14 = state_split(f14, 0)
+    y14, yt = labels_for(f14, 2014, thr)["nominal"], labels_for(ft, Y_RACE, thr)["nominal"]
+    per_state = {}
+    for st in margins["states"]:
+        name = f"state{st}_post_dp_race_s0"
+        p14, pt = load_pred(name, 2014, len(f14)), load_pred(name, Y_RACE, len(ft))
+        own = (st14 == st) & test14
+        dp_own14 = point(p14[own], y14[own], f14[own].reset_index(drop=True))["dp_race"]
+        m_t = stt == st
+        dp_own_t = point(pt[m_t], yt[m_t], ft[m_t].reset_index(drop=True))["dp_race"]
+        geo = [point(p14[st14 == o], y14[st14 == o], f14[st14 == o].reset_index(drop=True))["dp_race"]
+               for o in margins["states"] if o != st]
+        per_state[str(st)] = {"dp_own_2014": dp_own14, "dp_own_later": dp_own_t,
+                              "median_abs_dp_other_states_2014": float(np.median(np.abs(geo)))}
+    k = sum(abs(v["dp_own_later"]) < v["median_abs_dp_other_states_2014"] for v in per_state.values())
+    res["8.8_state_post_processing"] = {"by_state": per_state, "states_where_temporal_transfer_is_better": k,
+                                        "n_states": len(per_state)}
+
+    # 8.9 deployment in 2018 instead of 2014: change from the 2018 test split to each later year (seed means)
+    later = [y for y in YEARS if y > 2018]
+    dep = {}
+    f18 = frames[2018]
+    for fam, metrics in (("y2018_gbm", ("accuracy", "dp_race", "eo_race", "dp_sex", "eo_sex")),
+                         ("y2018_post_dp_race", ("dp_race", "accuracy")), ("y2018_post_dp_sex", ("dp_sex", "accuracy"))):
+        base = []
+        for sd in SEEDS:
+            r18 = state_split(f18, sd)
+            base.append(point(load_pred(f"{fam}_s{sd}", 2018, len(f18))[r18], labels_for(f18[r18], 2018, thr)["nominal"],
+                              f18[r18].reset_index(drop=True)))
+        dep[fam] = {"2018": {m: float(np.mean([b[m] for b in base])) for m in metrics}}
+        for y in later:
+            f = frames[y]
+            vals = [point(load_pred(f"{fam}_s{sd}", y, len(f)), labels_for(f, y, thr)["nominal"], f) for sd in SEEDS]
+            dep[fam][str(y)] = {m: float(np.mean([v[m] for v in vals])) for m in metrics}
+    res["8.9_deployment_2018"] = dep
 
     if not a.skip_p1:
         res["8.5_P1"] = p1_auc(frames, margins["states"], Y_RACE)

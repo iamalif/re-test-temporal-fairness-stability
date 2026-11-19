@@ -3,15 +3,15 @@
 Every mapping below is derived from the PUMS data dictionaries (data/raw/dictionaries) and the Census 2018
 occupation crosswalk; none is tuned on outcome data. Breaks handled:
 
-- OCCP (2018): 2010-based codes in 2014-2017, 2018-based codes from 2018. Harmonised to the major
-  occupation group given by the three-letter prefix of each code's label in that year's own dictionary
-  (e.g. "MGR-", "ENG-", "PRD-"). The prefix scheme exists in both vintages. Codes that the official
+- OCCP (2018): 2010-based codes in 2014-2017, 2018-based codes from 2018 (identical code lists 2018-2024).
+  Harmonised to the major occupation group given by the three-letter prefix of each code's label in that year's
+  own dictionary (e.g. "MGR-", "ENG-", "PRD-"): 25 groups plus "UNE" for code 9920. The prefix scheme exists in both vintages. Codes that the official
   crosswalk moves across major groups are counted in the harmonisation report.
 - RELP -> RELSHIPP (2019): spouse and unmarried partner split by sex; "roomer or boarder" dropped.
   Harmonised to RELP's categories, with roomer/boarder (11), housemate/roommate (12) and other nonrelative (15)
   merged into one non-relative category in every year, because the 2019 form no longer separates them.
-- POBP: codes deleted in some years (208 Cyprus, through 2016; 456 Tunisia and 463 South Sudan, absent from
-  the 2024 dictionary) are merged with a residual code in every year (see POBP_MERGE).
+- POBP: codes deleted in some years (208 Cyprus, data through 2016; 456 Tunisia, collapsed into 464 from the 2022
+  file; 463 South Sudan, deleted in 2024) are merged with a residual code in every year (see POBP_MERGE).
 - RAC1P: codes unchanged, but the race question and coding changed in 2020 (Census: compare with caution).
   Not recoded; race-based estimands use 2019 as their last year (pre-registration).
 - COW, SCHL, MAR, SEX, WKHP, AGEP: dictionary codes identical in 2014-2018, 2019 and 2024 dictionaries.

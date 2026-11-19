@@ -20,7 +20,7 @@ import pandas as pd
 from analysis import (METRICS, REP, Estimate, change, compare_stability, household_ids, noise_corrected_abs,
                       sign_test, three_way, unweighted, weighted)
 from common import label, load_year, state_split
-from pipeline import MANIFEST, SEEDS, SMOKE, load_pred
+from pipeline import MANIFEST, SEEDS, SMOKE, load_pred, train_year_of
 
 ALPHA = 0.05 / 8
 ALL_YEARS = (2014, 2015, 2016, 2017, 2018, 2019, 2021, 2022, 2023, 2024)
@@ -41,10 +41,10 @@ def frame(year):
     return df
 
 
-def estimate(name, year, df, seed=0, rows=None, rule=">"):
-    """(unweighted, weighted) Estimate of a frozen US model on one year (2014: test split of its seed)."""
+def estimate(name, year, df, seed=0, rows=None, rule=">", train_year=2014):
+    """(unweighted, weighted) Estimate of a frozen model on one year (its training year: test split of its seed)."""
     pred = load_pred(name, year, len(df))
-    keep = state_split(df, seed) if year == 2014 else np.ones(len(df), bool)
+    keep = state_split(df, seed) if year == train_year else np.ones(len(df), bool)
     if rows is not None:
         keep &= rows
     y = label(df, rule=rule)
@@ -155,10 +155,11 @@ def main():
     for y in ALL_YEARS:
         df = frame(y)
         for name, meta in manifest.items():
-            if name.startswith("state") or (name.startswith("rawgbm") and y > 2018):
+            ty = train_year_of(name, manifest)
+            if name.startswith("state") or (name.startswith("rawgbm") and y > 2018) or y < ty:
                 continue
             for rule in (">", ">="):
-                for wt, e in zip(WT, estimate(name, y, df, meta["seed"], rule=rule)):
+                for wt, e in zip(WT, estimate(name, y, df, meta["seed"], rule=rule, train_year=ty)):
                     for m in METRICS:
                         rows.append(dict(model=name, year=y, rule=rule, weighting=wt, metric=m,
                                          value=e.values[m], se=e.se(m)))

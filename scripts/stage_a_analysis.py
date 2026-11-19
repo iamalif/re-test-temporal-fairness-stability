@@ -24,7 +24,7 @@ import pandas as pd
 
 from analysis import METRICS, REP, Estimate, change, household_ids, noise_corrected_abs, unweighted, weighted
 from common import label, load_year, state_split
-from pipeline import MANIFEST, SEEDS, SMOKE, load_pred
+from pipeline import MANIFEST, SEEDS, SMOKE, load_pred, train_year_of
 
 YEARS = (2014, 2015, 2016, 2017, 2018)
 FLOOR = 0.01
@@ -48,19 +48,21 @@ def estimates(pred, y, df):
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     manifest = json.loads(MANIFEST.read_text())
-    us_models = [n for n in manifest if not n.startswith("state")]
+    us_models = [n for n in manifest if not n.startswith("state")]   # includes y2018_* (8.9)
     states = sorted({int(n[5:].split("_")[0]) for n in manifest if n.startswith("state")})
     frames = {y: frame(y) for y in YEARS}
     labels = {y: label(frames[y]) for y in YEARS}
     rows, est = [], {}
     # ---- US-wide frozen models ----
     for name in us_models:
-        seed = manifest[name]["seed"]
-        test14 = state_split(frames[2014], seed)
+        seed, ty = manifest[name]["seed"], train_year_of(name, manifest)
+        test_ty = state_split(frames[ty], seed)
         for y in YEARS:
+            if y < ty:                      # models trained on 2018 (8.9) are evaluated forward only
+                continue
             df, yy = frames[y], labels[y]
             pred = load_pred(name, y, len(df))
-            keep = test14 if y == 2014 else np.ones(len(df), bool)
+            keep = test_ty if y == ty else np.ones(len(df), bool)
             eu, ew = estimates(pred[keep], yy[keep], df[keep].reset_index(drop=True))
             est[(name, y)] = (eu, ew)
             for wt, e in (("unweighted", eu), ("weighted", ew)):
@@ -91,6 +93,12 @@ def main():
             dp = [abs(np.mean([est[(f"post_dp_{g}_s{s}", y)][wi].values[f"dp_{g}"] for s in SEEDS])) for y in YEARS]
             mg["epsilon_raw"][g] = max(dp)
             mg["epsilon"][g] = max(max(dp), FLOOR)
+        # same rule for the EO-post-processed models (secondary 8.2)
+        mg["epsilon_eo"], mg["epsilon_eo_raw"] = {}, {}
+        for g in ("race", "sex"):
+            eo = [abs(np.mean([est[(f"post_eo_{g}_s{s}", y)][wi].values[f"eo_{g}"] for s in SEEDS])) for y in YEARS]
+            mg["epsilon_eo_raw"][g] = max(eo)
+            mg["epsilon_eo"][g] = max(max(eo), FLOOR)
 
     # ---- geographic yardstick (2014, per-state models) ----
     df14, y14 = frames[2014], labels[2014]

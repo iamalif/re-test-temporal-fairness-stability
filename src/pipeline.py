@@ -17,6 +17,9 @@ Model families (all trained on 2014 only):
 - rawgbm_s0: base model on the raw (unharmonised) codes, for the recoding-artefact analysis on 2014-2018.
 - state{ST}_gbm_s0, state{ST}_post_dp_race_s0: per-state models for the 20 largest states (by 2014 rows),
   trained on that state's 2014 training split.
+- y2018_gbm_s{0..4}, y2018_post_dp_{race,sex}_s{0..4}: the same base model and DP post-processing trained on 2018
+  instead (secondary analysis 8.9: is the pattern specific to a 2014 deployment?). Evaluated on the 2018 test split
+  and on later years.
 
 Fitted models are written to data/derived/models/ (not committed); their SHA-256 hashes go to
 results/models_manifest.json (committed and cited in the pre-registration). Predictions are stored bit-packed in
@@ -162,20 +165,27 @@ def _post(gbm, X, y, sens, constraint):
 
 # ---------------- jobs ----------------
 
-def _save(fz: Frozen, fit_seconds: float, n_train: int) -> dict:
+def _save(fz: Frozen, fit_seconds: float, n_train: int, train_year: int) -> dict:
     MODELS.mkdir(parents=True, exist_ok=True)
     path = MODELS / f"{fz.name}.joblib"
     joblib.dump(fz, path, compress=3)
     return {"name": fz.name, "file": path.name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
             "fit_seconds": round(fit_seconds, 1), "n_train": int(n_train), "kind": fz.kind,
             "features": fz.features, "group": fz.group, "seed": fz.seed,
-            "kept_categories": fz.keep}
+            "kept_categories": fz.keep, "train_year": int(train_year)}
+
+
+def model_prefix(job: dict) -> str:
+    ty = job.get("train_year", TRAIN_YEAR)
+    p = f"y{ty}_" if ty != TRAIN_YEAR else ""
+    return p + (f"state{job['state']}_" if job.get("state") is not None else "")
 
 
 def fit_job(job: dict) -> list[dict]:
-    """Fit the models of one job on 2014 and save them. Returns manifest entries."""
+    """Fit the models of one job on its training year (default 2014) and save them. Returns manifest entries."""
     seed = job["seed"]
-    df = year_frame(TRAIN_YEAR)
+    train_year = job.get("train_year", TRAIN_YEAR)
+    df = year_frame(train_year)
     test = state_split(df, seed)
     if job.get("state") is not None:
         keep = (df["ST"] == job["state"]).to_numpy()
@@ -187,11 +197,11 @@ def fit_job(job: dict) -> list[dict]:
     scaler = Scaler(X[tr])
     Xs = scaler(X)
     out, t0 = [], time.time()
-    prefix = f"state{job['state']}_" if job.get("state") is not None else ""
+    prefix = model_prefix(job)
     if job["kind"] in ("gbm", "rawgbm"):
         gbm = base_model(seed).fit(Xs[tr], y[tr])
         name = f"{prefix}{'rawgbm' if feats == 'raw' else 'gbm'}_s{seed}"
-        out.append(_save(Frozen(name, feats, scaler, "gbm", gbm, seed=seed), time.time() - t0, tr.sum()))
+        out.append(_save(Frozen(name, feats, scaler, "gbm", gbm, seed=seed), time.time() - t0, tr.sum(), train_year))
         for group, constraint in job.get("post", []):
             t1 = time.time()
             raw_sens = df[GROUPS[group]].to_numpy().astype(int)
@@ -200,7 +210,7 @@ def fit_job(job: dict) -> list[dict]:
             post = _post(gbm, Xs[tr], y[tr], sens[tr], constraint)
             fz = Frozen(f"{prefix}post_{constraint}_{group}_s{seed}", feats, scaler, "post", post, group, seed,
                         keep=keep)
-            out.append(_save(fz, time.time() - t1, tr.sum()))
+            out.append(_save(fz, time.time() - t1, tr.sum(), train_year))
     elif job["kind"] == "expgrad":
         from fairlearn.reductions import DemographicParity, ExponentiatedGradient
         raw_sens = df["RAC1P"].to_numpy().astype(int)
@@ -208,7 +218,7 @@ def fit_job(job: dict) -> list[dict]:
         eg = ExponentiatedGradient(base_model(seed), constraints=DemographicParity())
         eg.fit(Xs[tr], y[tr], sensitive_features=pool_categories(raw_sens, keep)[tr])
         out.append(_save(Frozen(f"expgrad_dp_race_s{seed}", feats, scaler, "expgrad", eg, "race", seed,
-                                keep=keep), time.time() - t0, tr.sum()))
+                                keep=keep), time.time() - t0, tr.sum(), train_year))
     elif job["kind"] == "lfr":
         from aif360.algorithms.preprocessing import LFR
         race = df["RAC1P"].to_numpy()
@@ -218,7 +228,7 @@ def fit_job(job: dict) -> list[dict]:
         lfr.fit(ds, maxiter=5000, maxfun=5000)
         gbm = base_model(seed).fit(lfr.transform(ds).features, y[tr])
         out.append(_save(Frozen(f"lfr_race_s{seed}", feats, scaler, "lfr", gbm, "race", seed, lfr=lfr),
-                         time.time() - t0, tr.sum()))
+                         time.time() - t0, tr.sum(), train_year))
     else:
         raise ValueError(job)
     return out
@@ -230,7 +240,13 @@ def stage_a_jobs() -> list[dict]:
     jobs += [dict(kind="gbm", seed=s, post=post) for s in SEEDS]
     jobs += [dict(kind="rawgbm", seed=0)]
     jobs += [dict(kind="gbm", seed=0, state=st, post=[("race", "dp")]) for st in largest_states()]
+    jobs += [dict(kind="gbm", seed=s, train_year=2018, post=[("race", "dp"), ("sex", "dp")]) for s in SEEDS]
     return jobs
+
+
+def train_year_of(name: str, manifest: dict) -> int:
+    """Training year recorded in the manifest (entries written before 8.9 was added are 2014 models)."""
+    return int(manifest[name].get("train_year", TRAIN_YEAR))
 
 
 def predict_year(model_names: list[str], year: int) -> None:

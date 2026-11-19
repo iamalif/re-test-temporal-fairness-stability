@@ -1,6 +1,6 @@
 # Pre-registration: Does fairness stay put? A re-test of temporal fairness stability on ACS 2014–2024
 
-**Status:** DRAFT v0.1 (19 Nov 2026). Not yet archived. Values marked ⟨A⟩ are filled from
+**Status:** DRAFT v0.2 (19 Nov 2026; changes since v0.1 in `logs/decision_log.md` D018–D020). Not yet archived. Values marked ⟨A⟩ are filled from
 `results/stage_a/margins.json` once Stage A finishes; the rules that produce them are fixed here.
 **Author:** single author (name withheld in this draft).
 **Archiving:** this file, `results/models_manifest.json`, `results/stage_a/margins.json` and the code at the
@@ -49,12 +49,15 @@ fairness is more stable over time than across states when both are measured on o
 - **Label:** nominal `PINCP > 50000` (as folktables; no inflation adjustment). Alternatives in Section 8.3.
 - **Harmonised features** (`src/harmonise.py`; derived from Census documentation only; decision log D014):
   AGEP, COW, SCHL, MAR, WKHP, SEX, RAC1P unchanged (codes identical in the 2014–2018, 2019 and 2024 dictionaries);
-  occupation as 25 major groups (label prefixes of each year's own dictionary; 8 whole-code cross-group moves in the
+  occupation as 25 major groups plus one code for the long-term unemployed (label prefixes of each year's own dictionary; 8 whole-code cross-group moves in the
   official crosswalk assigned their 2018 group); relationship mapped to RELP categories with roomer/boarder,
   housemate/roommate and other nonrelative merged (RELSHIPP mapped to the same categories from 2019); place of birth
   with three discontinued codes merged into regional residual codes (Census variable-change notes: Tunisia
-collapsed into "Northern Africa, not specified" from 2022; South Sudan deleted in 2024; Cyprus code used only
-through 2016, destination not stated, merged into "Other Europe, not specified"; about 60–190 rows a year). Missing values become 0, as in folktables.
+  collapsed into "Northern Africa, not specified" from 2022; South Sudan deleted in 2024; Cyprus code used only
+  through 2016, destination not stated, merged into "Other Europe, not specified"; about 60–190 rows a year).
+  Missing values become 0, as in folktables. The 2019–2024 dictionaries use the same occupation codes and prefixes
+  as 2018 (checked), so no further occupation break occurs after 2018. The state variable is named STATE from 2023
+  and is renamed on reading.
   The harmonised scheme leaves a residual 2018 shift of at most 0.5 points in any occupation group's share
   (Section 9, recoding check).
 - **Race comparability:** the race question and coding changed in 2020 (Census: compare with caution). Race-based
@@ -83,6 +86,9 @@ preprocessing. Their SHA-256 hashes are in `results/models_manifest.json` (hash 
   hyperparameters of the original appendix (k = 10, Ax = 0.1, Ay = 1, Az = 2, maxiter = maxfun = 5000), binary White
   indicator, base model trained on the representation. Small race categories (fewer than 100 training rows or fewer
   than 20 of either label) are pooled for the interventions; the pooled categories are recorded in the manifest.
+- **Models deployed in 2018 (secondary 8.9):** the base model (seeds 0–4) and its DP post-processing for race and
+  for sex, trained on the 2018 training split in the same way, to ask whether the pattern is specific to a 2014
+  deployment. Fitted and frozen before archiving like all others.
 - **Per-state models (geographic arm):** base model and DP post-processing (race) for each of the 20 largest states
   by 2014 rows (Puerto Rico excluded), trained on that state's 2014 training split, seed 0.
 - **Evaluation sets:** 2014: the held-out test split of the model's seed; every other year: all rows of that year.
@@ -176,7 +182,11 @@ intervals, in the main text.
 8.1 **Trajectories:** every metric for every model, years 2014–2019 and 2021–2024, with intervals. Race-based
 values for 2021–2024 are shown separately with the comparability caveat.
 
-8.2 **Other interventions:** ExpGrad (DP) and LFR, race, rule C3 with their own ε (same rule) at 2019.
+8.2 **Other interventions:** ExpGrad (DP) and LFR, race, seed 0: holds if the interval for DP_race(2019) lies in
+[−ε, ε], with ε the largest |DP_race| of that model in 2014–2018 (floor 0.01). For LFR, which leaves a large DP gap,
+this asks whether the gap stays within its own 2014–2018 range. The EO-post-processed models (race at 2019, sex
+at 2024, seed means) are assessed the same way for |EO| with ε_EO,g (largest |EO| of that model in 2014–2018,
+floor 0.01), covering the interventions of the original Appendix D.3.
 
 8.3 **Label definitions** (accuracy and EO; DP of a frozen model does not depend on the label):
 (a) nominal `PINCP > 50000`; (b) `>=` instead of `>`; (c) inflation-anchored: PINCP > T_t, with T_t = 50000 ×
@@ -214,6 +224,14 @@ preprocessing that reproduces the original figures), to show how much of the acc
 8.7 **Recoding artefact:** on 2014–2018 only, models on raw codes versus harmonised features; the 2018 point
 crosses the occupation break in the original analysis.
 
+8.8 **Constraint transfer across states:** for each of the 20 per-state DP-post-processed models, |DP_race| in its own
+state in 2019 against the median |DP_race| when applied to the other 19 states in 2014; we report the number of
+states where the constraint transfers better over time than across states (descriptive).
+
+8.9 **Deployment in 2018:** for the 2018-trained models, the change of every metric from the 2018 test split to
+2019 and 2021–2024 (seed means; DP and EO for race shown to 2019 in the main text and later with the caveat).
+Descriptive: the 2014–2018 margins do not apply to a model deployed at the end of that window.
+
 ## 9. Known limitations and deviations policy
 
 - The harmonised occupation groups leave a residual 2018 shift (≤ 0.5 points per group); 2019+ changes in
@@ -228,7 +246,9 @@ crosses the occupation break in the original analysis.
 ## 10. Software and reproducibility
 
 Python 3.12, `uv.lock` (numpy 2.5.5, pandas 3.1.1, scikit-learn 1.9.1, scipy 1.17.1, fairlearn 0.15.0, aif360 0.6.1,
-folktables @ ebace19). One command per stage (`scripts/stage_a.py`, Stage B evaluation script). Every number in the
+folktables @ ebace19). Stage A: `scripts/stage_a.py fit|predict`, `scripts/stage_a_analysis.py`, `scripts/check_decomposition_2018.py`.
+Stage B: `scripts/download_stage2.sh`, `src/data.py <years>`, `scripts/stage_a.py predict --years …`,
+`scripts/stage_b_confirmatory.py`, `scripts/stage_b_secondary.py`. Every number in the
 paper is generated from result files. Data are not redistributed; the harmonised loader and code will be released.
 
 ## 11. Use of AI assistance

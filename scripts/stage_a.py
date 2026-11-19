@@ -18,14 +18,14 @@ sys.path.insert(0, str(ROOT / "src"))
 
 import json
 
-from pipeline import MANIFEST, MODELS, fit_job, manifest_update, predict_year, stage_a_jobs
+from pipeline import MANIFEST, MODELS, fit_job, manifest_update, model_prefix, predict_year, stage_a_jobs
 
 ORIGINAL = (2014, 2015, 2016, 2017, 2018)
 NEW = (2019, 2021, 2022, 2023, 2024)
 
 
 def _names_of(job):
-    p = f"state{job['state']}_" if job.get("state") is not None else ""
+    p = model_prefix(job)
     if job["kind"] in ("gbm", "rawgbm"):
         names = [f"{p}{job['kind']}_s{job['seed']}"]
         names += [f"{p}post_{c}_{g}_s{job['seed']}" for g, c in job.get("post", [])]

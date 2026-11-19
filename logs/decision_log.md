@@ -230,3 +230,79 @@ Format: ID, date (Europe/Stockholm), decision or event, reason, who.
   2019/2024): src/pipeline.py, src/analysis.py (unit-tested against analytic binomial SEs), scripts/stage_a.py,
   scripts/stage_a_analysis.py, scripts/stage_b_confirmatory.py. Secondary-analysis code (Section 8) still to write.
 - Independent review brief for the second AI: docs/review_brief_prereg_v0.1.md.
+
+## D017 - 2026-11-19 - Documentation checks, CPI, secondary-analysis code
+- Census PUMS variable-change notes (data/raw/variable_changes/) read. Confirmed: Tunisia (456) collapsed into
+  464 "Northern Africa, not specified" (from the 2022 1-year file; harmonise.py docstring says 2024, to correct after
+  Stage A); South Sudan (463) deleted in 2024; Cyprus (208) refers to 2016 and earlier, destination not stated
+  (kept as 208 -> 169 "Other Europe, n.s."; about 60 rows a year in 2014-2016; Census codes Cyprus in its Asia range,
+  so 254 would have been equally defensible; not changed because Stage A was already running and the effect on a
+  tree model is negligible). COW, PINCP, OCCP (2019-2024): label/cosmetic changes only. No change notes found for
+  AGEP, SCHL, MAR, WKHP, SEX, RAC1P, PWGTP.
+- BLS blocked the scripted CPI download (403); the researcher downloaded r-cpi-u-rs-allitems.xlsx manually.
+  R-CPI-U-RS annual averages: 2014 347.7, 2018 369.1, 2019 375.8, 2024 462.5 (retroactive series; replaces the
+  older CPI-U-RS PDF, whose 2014 value was 348.3).
+- Inflation-anchored thresholds (2014-2018): 50,000; 50,000; 51,000; 52,000; 53,000. (Base-rate-anchored values are
+  computed on the full data in Stage B.)
+- Secondary-analysis code written and smoke-tested: scripts/stage_b_secondary.py (8.2-8.6),
+  src/analysis.point (weighted point estimates), scripts/check_decomposition_2018.py (pre-archiving validation of
+  the DFL decomposition on 2014 -> 2018, added to prereg 8.4).
+
+## D018 - 2026-11-19 - QA round (no outcome data involved)
+- Bug found and fixed before it could bite: the state column is named STATE from 2023 (2023 and 2024 dictionaries;
+  ST in 2019-2022). src/data.py now reads STATE, renames it to ST, and checks that every required column is present
+  (verified on 2014 and 2018 headers). scripts/download_stage2.sh added; it refuses to run before archiving (tested).
+- Statistical fix: unweighted standard errors now cluster by household (state + SERIALNO), because the ACS samples
+  households. Monte Carlo check with household-clustered outcomes: clustered SE 0.0171 vs empirical SD 0.0176;
+  the unclustered SE (0.0112) was too small. Applied in stage_a_analysis, stage_b_confirmatory, stage_b_secondary
+  before Stage A analysis ran; prereg 7.1 updated. Smoke tests re-run.
+- Sync check: a device_commit_files call earlier reported success but left scripts/reconstruct.py at the older
+  version (resume-robustness patch missing; the run itself used the old version, which is unaffected). All files
+  now verified by checksum against the working copies.
+- Paper and plan wording made exact: the literal 5-tree model is 0.10-0.15 below the published accuracy in every
+  year and seed; the 100-tree choice minimises deviation under per-year standardisation (50 trees is closer under
+  the frozen standardisation, whose curve shape does not match the published one).
+
+## D019 - 2026-11-19 - Power fix: stability tests measured against the 2014-2018 baseline
+- Problem (found in QA, from group sizes only, before any outcome was examined): the 2014 evaluation set is the
+  20% test split (about 30,000 Black and 250,000 White rows), so a change measured from 2014 has an SE of about
+  0.003 for the race DP gap; with the Bonferroni interval (z = 2.73) a "holds" decision would need |change| below
+  about 0.002 for a 0.01 margin. C1, C2, C5 and C6 could almost never conclude stability.
+- Fix: C1, C2, C5, C6 now test the deviation of m(t) from the model's 2014-2018 baseline mean (equal weight per year;
+  Var(B) = sum Var(m_t)/25), SE about 0.0015 for the race DP gap. delta is redefined consistently as the largest
+  deviation of a 2014-2018 year from that baseline (floor 0.01); the largest change from 2014 is still reported.
+  C7 keeps change from 2014 (accuracy trends within the window; C7 compares two changes, no margin).
+- Implementation: stage_a_analysis saves every US model-year estimate (values and covariance) to
+  results/stage_a/estimates_2014_2018.json; stage_b_confirmatory computes the baseline from it. Smoke-tested.
+  Prereg sections 5 and 6 updated. Done before Stage A analysis has run, so no margin value was seen first.
+
+## D020 - 2026-11-19 - Full QA pass of plan, code and harmonisation (plan v0.2)
+- Read every pipeline file against the plan. Fixed: occupation has 25 major groups plus a code for the long-term
+  unemployed (26 codes), not 25; harmonise.py docstring (Tunisia collapsed from 2022, not 2024); broken indentation
+  in plan section 3; plan section 10 now lists the exact Stage A/B commands.
+- Checked: RELSHIPP -> RELP mapping against the 2017, 2019 and 2024 dictionaries (correct); the 2019-2024 occupation
+  code lists and prefixes are identical to 2018 (no further break); every OCCP code 2019-2024 maps to a group.
+- Gap closed: the 20 per-state DP-post-processed models were fitted but no analysis used them. Added secondary
+  analysis 8.8 (constraint transfer: own state later vs other states in 2014) to the plan and to
+  stage_b_secondary.py (smoke-tested).
+- 8.2 wording made exact (band around 0 with epsilon = largest |DP| in 2014-2018; for LFR this is its own range).
+- scripts/run_all.sh added (single command per stage); README updated. Plan bumped to v0.2.
+- Sync: a commit of src/harmonise.py again reported success without updating the file; re-committed and verified
+  by checksum. Every edited file is now verified by checksum after transfer.
+
+## D021 - 2026-11-19 - Added secondary analysis 8.9: deployment in 2018
+- Rationale: the confirmatory tests concern a model deployed in 2014, as in the original. A reviewer can ask whether
+  the result is specific to that deployment year. Five base models and their DP post-processing (race, sex) are now
+  also trained on the 2018 training split, frozen before archiving, and evaluated forward (2018 test split, then
+  2019 and 2021-2024). Descriptive only; the 2014-2018 margins do not apply to them.
+- Code: pipeline.model_prefix / train_year in the manifest (older entries default to 2014); stage_a_analysis and
+  stage_b_confirmatory evaluate each model on its own training year's test split and only forward in time;
+  stage_b_secondary 8.9. Full chain smoke-tested (fit, predict, stage A analysis, confirmatory, secondary incl. P1).
+- Cost: 5 GBM fits plus 10 post-processing fits (minutes). Run after the current Stage A finishes:
+  stage_a.py fit (fits only the new jobs), stage_a.py predict (skips existing files), stage_a_analysis.py.
+
+## D022 - 2026-11-19 - EO interventions covered (secondary 8.2)
+- Gap: the original Appendix D.3 also covers EO interventions; the plan tested only the unconstrained EO gap
+  (C5, C6). The fitted EO-post-processed models (race, sex; 5 seeds) are now assessed like 8.2: |EO| at 2019 (race)
+  and 2024 (sex) within epsilon_EO, the largest |EO| of that model in 2014-2018 (floor 0.01). Secondary, so the
+  confirmatory family and alpha are unchanged. stage_a_analysis computes epsilon_eo; smoke-tested.
