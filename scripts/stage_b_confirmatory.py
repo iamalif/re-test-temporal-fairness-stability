@@ -65,6 +65,32 @@ def seed_mean_change(family, year, frames, metric, wi):
     return float(np.mean(ds)), float(np.mean(ses))
 
 
+_STORE = {}
+
+
+def stored(name, year, wt):
+    """Stage A estimate (values, covariance) of a US model in an original-cohort year."""
+    if not _STORE:
+        _STORE.update(json.loads((MARGINS.parent / "estimates_2014_2018.json").read_text()))
+    e = _STORE[f"{name}|{year}|{wt}"]
+    return Estimate(e["values"], np.array(e["cov"]), e["n"])
+
+
+def seed_mean_dev_from_baseline(family, year, frames, metric, wi):
+    """Seed-mean deviation of m(year) from the model's 2014-2018 baseline mean B (equal weight per year), and the
+    mean per-seed SE. Var(B) = sum_t Var(m_t) / 25 (independent years); Var(m(year) - B) = Var(m_year) + Var(B)."""
+    wt, k = WT[wi], METRICS.index(metric)
+    ds, ses = [], []
+    for s in SEEDS:
+        base = [stored(f"{family}_s{s}", y, wt) for y in (2014, 2015, 2016, 2017, 2018)]
+        b = np.mean([e.values[metric] for e in base])
+        var_b = sum(e.cov[k, k] for e in base) / 25.0
+        e_t = estimate(f"{family}_s{s}", year, frames[year], s)[wi]
+        ds.append(e_t.values[metric] - b)
+        ses.append(np.sqrt(e_t.cov[k, k] + var_b))
+    return float(np.mean(ds)), float(np.mean(ses))
+
+
 def seed_mean_level(family, year, frames, metric, wi):
     vals, ses = [], []
     for s in SEEDS:
@@ -81,17 +107,17 @@ def main():
     res = {"alpha_per_test": ALPHA}
     for wi, wt in enumerate(WT):
         mg, r = margins[wt], {}
-        d, se = seed_mean_change("gbm", Y_RACE, frames, "dp_race", wi)
+        d, se = seed_mean_dev_from_baseline("gbm", Y_RACE, frames, "dp_race", wi)
         r["C1"] = three_way(d, se, mg["delta"]["dp_race"], ALPHA)
-        d, se = seed_mean_change("gbm", Y_SEX, frames, "dp_sex", wi)
+        d, se = seed_mean_dev_from_baseline("gbm", Y_SEX, frames, "dp_sex", wi)
         r["C2"] = three_way(d, se, mg["delta"]["dp_sex"], ALPHA)
         v, se = seed_mean_level("post_dp_race", Y_RACE, frames, "dp_race", wi)
         r["C3"] = three_way(v, se, mg["epsilon"]["race"], ALPHA)
         v, se = seed_mean_level("post_dp_sex", Y_SEX, frames, "dp_sex", wi)
         r["C4"] = three_way(v, se, mg["epsilon"]["sex"], ALPHA)
-        d, se = seed_mean_change("gbm", Y_RACE, frames, "eo_race", wi)
+        d, se = seed_mean_dev_from_baseline("gbm", Y_RACE, frames, "eo_race", wi)
         r["C5"] = three_way(d, se, mg["delta"]["eo_race"], ALPHA)
-        d, se = seed_mean_change("gbm", Y_SEX, frames, "eo_sex", wi)
+        d, se = seed_mean_dev_from_baseline("gbm", Y_SEX, frames, "eo_sex", wi)
         r["C6"] = three_way(d, se, mg["delta"]["eo_sex"], ALPHA)
         # C7: joint seed-mean changes of DP_race and accuracy; covariance = mean of per-seed covariances
         i_dp, i_acc = METRICS.index("dp_race"), METRICS.index("accuracy")

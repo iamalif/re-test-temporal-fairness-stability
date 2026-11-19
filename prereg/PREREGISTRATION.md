@@ -90,30 +90,43 @@ preprocessing. Their SHA-256 hashes are in `results/models_manifest.json` (hash 
 
 ## 5. Confirmatory hypotheses (family of 8)
 
-Notation: m(t) is a metric of a frozen model on year t; Δm(t) = m(t) − m(2014). Unless stated, values are the mean
-over seeds 0–4, and the standard error is the mean of the per-seed standard errors (an upper bound, because the seeds
-share the evaluation data). All are unweighted (primary; Section 7.3 for weighted).
+Notation: m(t) is a metric of a frozen model on year t. B_m is the model's **2014–2018 baseline**, the mean of
+m(2014), …, m(2018) with equal weight per year (2014 on the held-out test split, 2015–2018 on all rows), and
+Δ*m(t) = m(t) − B_m. Unless stated, values are the mean over seeds 0–4, and the standard error is the mean of the
+per-seed standard errors (an upper bound, because the seeds share the evaluation data). All are unweighted
+(primary; Section 7.3 for weighted).
+
+Why the baseline rather than 2014 alone: the 2014 evaluation set is the 20% test split, so a change measured from
+2014 alone has a standard error of about 0.003 for the race DP gap (computed from group sizes, before any outcome
+was examined), and with the Bonferroni interval a "holds" decision would need |Δ| below about 0.002 for a 0.01
+margin, i.e. the test could almost never conclude stability. Against the five-year baseline the standard error is
+about 0.0015. The baseline also matches the original claim, which is about the whole 2014–2018 window.
 
 | ID | Question | Model | Estimate | Year | Rule (Section 7) |
 |---|---|---|---|---|---|
-| C1 | Is the DP violation (race) stable? | GBM | ΔDP_race | 2019 | within ±δ_DP,race |
-| C2 | Is the DP violation (sex) stable? | GBM | ΔDP_sex | 2024 | within ±δ_DP,sex |
+| C1 | Is the DP violation (race) stable? | GBM | Δ*DP_race | 2019 | within ±δ_DP,race |
+| C2 | Is the DP violation (sex) stable? | GBM | Δ*DP_sex | 2024 | within ±δ_DP,sex |
 | C3 | Does a DP-certified model (race) keep satisfying DP? | post-proc. DP, race | DP_race | 2019 | within ±ε_race |
 | C4 | Does a DP-certified model (sex) keep satisfying DP? | post-proc. DP, sex | DP_sex | 2024 | within ±ε_sex |
-| C5 | Is the EO violation (race) stable? | GBM | ΔEO_race | 2019 | within ±δ_EO,race |
-| C6 | Is the EO violation (sex) stable? | GBM | ΔEO_sex | 2024 | within ±δ_EO,sex |
-| C7 | Is fairness more stable than accuracy, on a common scale? | GBM | D = abs(ΔDP_race)/G_DP,race − abs(Δacc)/G_acc | 2019 | interval of D below / above 0 |
+| C5 | Is the EO violation (race) stable? | GBM | Δ*EO_race | 2019 | within ±δ_EO,race |
+| C6 | Is the EO violation (sex) stable? | GBM | Δ*EO_sex | 2024 | within ±δ_EO,sex |
+| C7 | Is fairness more stable than accuracy, on a common scale? | GBM | D = abs(ΔDP_race)/G_DP,race − abs(Δacc)/G_acc, Δ = change from 2014 | 2019 | interval of D below / above 0 |
 | C8 | Is temporal change smaller than geographic change? | per-state GBMs | sign test over 20 states | 2019 vs 2014 | Section 7.2 |
 
 C8 in detail: for each state s, the temporal change is the noise-corrected |ΔDP_race| of the state-s model between
 its 2014 test split and state s in 2019; the geographic reference is the median over the other 19 states s′ of the
 noise-corrected |DP_race(s → s′) − DP_race(s → s)| in 2014 (Section 6). The indicator is 1 if temporal < geographic.
 
+C7 measures both changes from 2014 (the deployment year in the original question) rather than from the baseline,
+because accuracy has a trend within 2014–2018 that a baseline mean would partly absorb; its decision compares two
+changes against each other and does not depend on a margin.
+
 ## 6. Margins and yardsticks (rules fixed; values from 2014–2018 only)
 
-- **δ_m (temporal margin):** the largest absolute seed-mean change of metric m for the unconstrained model between
-  2014 and any year 2015–2018, floored at 0.01. Rationale: this is the drift the original paper itself described as
-  "essentially constant"; a change in a new year within that range is consistent with the claim.
+- **δ_m (temporal margin):** the largest absolute deviation of a year 2014–2018 from the baseline B_m, for the
+  seed-mean trajectory of the unconstrained model, floored at 0.01. Rationale: this is the year-to-year variation
+  the original paper described as "essentially constant"; a new year within that range of the baseline is
+  consistent with the claim. (The largest change from 2014 is also reported.)
   Values: δ_DP,race ⟨A⟩, δ_DP,sex ⟨A⟩, δ_EO,race ⟨A⟩, δ_EO,sex ⟨A⟩, δ_acc ⟨A⟩.
 - **ε_g (constraint tolerance):** the largest absolute seed-mean DP of the DP-post-processed model (group g) in any
   year 2014–2018, floored at 0.01. Rationale: the band within which the original analysis would have regarded the

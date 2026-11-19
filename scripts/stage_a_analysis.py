@@ -2,8 +2,9 @@
 margins and yardsticks, and the recoding-artefact check. Writes results/stage_a/.
 
 Margins (pre-registration section 6), all computed here from 2014-2018 data and then frozen:
-- delta[m]   temporal margin for the unconstrained model: max over t in 2015-2018 of |mean over seeds of
-             m(t) - m(2014)|, floored at FLOOR. It is the drift that the original paper called "essentially constant".
+- delta[m]   temporal margin for the unconstrained model: max over t in 2014-2018 of |m(t) - B|, where m is the
+             seed-mean trajectory and B its 2014-2018 mean (the baseline), floored at FLOOR. It is the year-to-year
+             variation that the original paper called "essentially constant".
 - epsilon[g] constraint tolerance for the post-processed DP model of group g: max over 2014-2018 of
              |mean over seeds of DP(t)|, floored at FLOOR.
 - G[m]       geographic yardstick: median over ordered pairs of the 20 largest states (s -> s', 2014) of the
@@ -71,11 +72,18 @@ def main():
     margins = {"floor": FLOOR, "unweighted": {}, "weighted": {}}
     for wi, wt in enumerate(("unweighted", "weighted")):
         mg = margins[wt]
-        # delta: unconstrained model, mean over seeds of the change from 2014
+        # delta (primary, prereg 6): largest deviation of a year 2014-2018 from the 2014-2018 baseline mean
+        # (seed-mean trajectories), floored. Kept for transparency: the largest change from 2014.
+        traj = {m: np.mean([[est[(f"gbm_s{s}", y)][wi].values[m] for y in YEARS] for s in SEEDS], axis=0)
+                for m in METRICS}
+        mg["baseline_mean"] = {m: float(traj[m].mean()) for m in METRICS}
+        mg["deviation_from_baseline_by_year"] = {m: dict(zip(map(str, YEARS), (traj[m] - traj[m].mean()).tolist()))
+                                                 for m in METRICS}
+        mg["delta_raw"] = {m: float(np.max(np.abs(traj[m] - traj[m].mean()))) for m in METRICS}
+        mg["delta"] = {m: max(mg["delta_raw"][m], FLOOR) for m in METRICS}
         mean_change = {m: [np.mean([change(est[(f"gbm_s{s}", y)][wi], est[(f"gbm_s{s}", 2014)][wi])[0][m]
                                     for s in SEEDS]) for y in YEARS[1:]] for m in METRICS}
-        mg["delta"] = {m: max(max(abs(v) for v in mean_change[m]), FLOOR) for m in METRICS}
-        mg["delta_raw_max_change"] = {m: max(abs(v) for v in mean_change[m]) for m in METRICS}
+        mg["max_change_from_2014"] = {m: max(abs(v) for v in mean_change[m]) for m in METRICS}
         mg["mean_change_by_year"] = {m: dict(zip(map(str, YEARS[1:]), mean_change[m])) for m in METRICS}
         # epsilon: post-processed DP models
         mg["epsilon"], mg["epsilon_raw"] = {}, {}
@@ -123,6 +131,10 @@ def main():
         rec[str(y)] = {m: {"raw": eu_raw.values[m], "harmonised": eu_h.values[m]} for m in METRICS}
     (OUT / "recoding_check.json").write_text(json.dumps(rec, indent=1))
     (OUT / "margins.json").write_text(json.dumps(margins, indent=1))
+    # estimates of every US model-year (values and covariance), reused by Stage B for the baseline
+    store = {f"{n}|{y}|{wt}": {"values": e.values, "cov": e.cov.tolist(), "n": e.n}
+             for (n, y), pair in est.items() for wt, e in zip(("unweighted", "weighted"), pair)}
+    (OUT / "estimates_2014_2018.json").write_text(json.dumps(store))
 
     # ---- console summary ----
     pd.set_option("display.width", 220)
@@ -132,7 +144,8 @@ def main():
     for wt in ("unweighted", "weighted"):
         mg = margins[wt]
         print(f"\n[{wt}] delta:", {k: round(v, 4) for k, v in mg["delta"].items()},
-              "\n  raw max change:", {k: round(v, 4) for k, v in mg["delta_raw_max_change"].items()},
+              "\n  raw max deviation from baseline:", {k: round(v, 4) for k, v in mg["delta_raw"].items()},
+              "\n  max change from 2014:", {k: round(v, 4) for k, v in mg["max_change_from_2014"].items()},
               "\n  epsilon:", {k: round(v, 4) for k, v in mg["epsilon_raw"].items()},
               "\n  G:", {k: round(v, 4) for k, v in mg["G"].items()})
 

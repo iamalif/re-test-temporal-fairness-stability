@@ -42,3 +42,4 @@ data/derived/smoke*
 
 # draft PDFs (rebuild from source)
 paper/*.pdf
+results/smoke/models_manifest.json
