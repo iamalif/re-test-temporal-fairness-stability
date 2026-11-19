@@ -22,7 +22,7 @@ sys.path.insert(0, str(ROOT / "src"))
 import numpy as np
 import pandas as pd
 
-from analysis import (METRICS, REP, Estimate, change, household_ids, inflate, noise_corrected_abs, split_multiplier,
+from analysis import (METRICS, REP, Estimate, NotComputable, change, household_ids, inflate, noise_corrected_abs, split_multiplier,
                       unweighted, weighted)
 from common import label, load_year, state_split
 from pipeline import MANIFEST, N_STATES, SEEDS, SMOKE, load_pred, train_year_of, verify_inventory
@@ -115,25 +115,35 @@ def main():
     st14 = df14["ST"].to_numpy()
     test14 = state_split(df14, 0)
     geo_rows, own = [], {}
+    def safe(fn):
+        try:
+            return fn()
+        except NotComputable:          # failure policy (prereg 7.5): recorded as not computable, never dropped
+            return None
+
     for s in states:
         pred = load_pred(f"state{s}_gbm_s0", 2014, df14)
         m_own = (st14 == s) & test14
-        own[s] = estimates(pred[m_own], y14[m_own], df14[m_own].reset_index(drop=True), split=True)
+        own[s] = safe(lambda: estimates(pred[m_own], y14[m_own], df14[m_own].reset_index(drop=True), split=True))
         for t in states:
             if t == s:
                 continue
             m_t = st14 == t
-            e_t = estimates(pred[m_t], y14[m_t], df14[m_t].reset_index(drop=True))
+            e_t = safe(lambda: estimates(pred[m_t], y14[m_t], df14[m_t].reset_index(drop=True)))
             for wi, wt in enumerate(("unweighted", "weighted")):
-                d, cov = change(e_t[wi], own[s][wi])
+                ok = e_t is not None and own[s] is not None
+                d, cov = change(e_t[wi], own[s][wi]) if ok else (None, None)
                 for k, m in enumerate(METRICS):
-                    se = float(np.sqrt(cov[k, k]))
-                    geo_rows.append(dict(source=s, target=t, weighting=wt, metric=m, delta=d[m], se=se,
-                                         abs_corrected=noise_corrected_abs(d[m], se)))
+                    se = float(np.sqrt(cov[k, k])) if ok else np.nan
+                    geo_rows.append(dict(source=s, target=t, weighting=wt, metric=m,
+                                         delta=d[m] if ok else np.nan, se=se,
+                                         abs_corrected=noise_corrected_abs(d[m], se) if ok else np.nan,
+                                         computable=ok))
     geo = pd.DataFrame(geo_rows)
     counts = geo.groupby(["weighting", "metric"]).size()
     assert (counts == len(states) * (len(states) - 1)).all() and len(counts) == 2 * len(METRICS), counts
     geo.to_csv(OUT / "geographic_pairs_2014.csv", index=False)
+    margins["geographic_pairs_not_computable"] = int((~geo["computable"]).sum() // (2 * len(METRICS)))
     for wt in ("unweighted", "weighted"):
         g = geo[geo.weighting == wt].groupby("metric")["abs_corrected"].median()
         margins[wt]["G"] = {m: float(g[m]) for m in METRICS}

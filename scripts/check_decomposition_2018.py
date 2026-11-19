@@ -3,7 +3,7 @@
 A frozen model's DP depends only on the features, so after reweighting 2014 rows to the 2018 feature distribution
 the reweighted DP must match the 2018 DP (residual near 0, tolerance 0.005). Passing is necessary, not sufficient:
 the same run reports the balance, overlap, effective-sample-size and clipping diagnostics and the pre-specified
-reliability rule (DP check, max group-wise SMD <= 0.10, clipping sensitivity <= 0.005).
+reliability rule (DP check, max group-wise SMD <= 0.05, clipping sensitivity <= 0.005).
 Writes results/stage_a/decomposition_2018_check.json.
 """
 import json

@@ -53,8 +53,8 @@ def stage_a():
         need(set(man) == set(expected_models()), "manifest: exact model inventory")
     inv = load("results/inventory_check.json")
     if inv:
-        need(inv["problems"] == [] and set(inv["checked_years"]) >= {2014, 2015, 2016, 2017, 2018},
-             "inventory check passed for 2014-2018")
+        need(any(r["problems"] == [] and set(r["checked_years"]) >= {2014, 2015, 2016, 2017, 2018}
+                 for r in inv.values()), "inventory check passed for 2014-2018")
     mg = load("results/stage_a/margins.json")
     if mg:
         need(len(mg.get("states", [])) == N_STATES, "margins: 20 source states")
@@ -91,6 +91,10 @@ def stage_a():
 
 
 def stage_b():
+    inv = load("results/inventory_check.json")
+    if inv:
+        need(any(r["problems"] == [] and set(r["checked_years"]) >= {2019, 2021, 2022, 2023, 2024}
+                 for r in inv.values()), "inventory check passed for 2019 and 2021-2024")
     c = load("results/stage_b/confirmatory.json")
     if c:
         need(c.get("family") == ["C1", "C2", "C3", "C4", "C6", "C7"], "confirmatory family")
@@ -110,7 +114,7 @@ def stage_b():
     s = load("results/stage_b/secondary.json")
     if s:
         for k in ("thresholds", "8.2_other_interventions", "8.4_decomposition", "8.6_per_year_scaling",
-                  "8.8_state_post_processing", "8.9_deployment_2018", "8.5_P1"):
+                  "8.8_state_post_processing", "8.9_deployment_2018", "8.5_P1", "8.5_P1_without_birthplace"):
             need(k in s, f"secondary: {k}")
         need(all("reliable" in d for d in s.get("8.4_decomposition", [])), "secondary 8.4: reliability")
         dep = s.get("8.9_deployment_2018", {})

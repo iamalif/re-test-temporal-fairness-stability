@@ -39,7 +39,7 @@ if SMOKE:
     Y_RACE, Y_SEX, YEARS = 2017, 2018, (2014, 2015, 2016, 2017, 2018)
     OUT, STAGE_A = ROOT / "data" / "derived" / "smoke_stage_b", ROOT / "data" / "derived" / "smoke_stage_a"
 CHECK_TOL = 0.005                  # DP falsification check of the decomposition
-SMD_TOL = 0.10                     # balance: max |standardised mean difference| after reweighting, per group
+SMD_TOL = 0.05                     # balance: max |standardised mean difference| after reweighting, per group (D024)
 CLIP_TOL = 0.005                   # clipping sensitivity: |residual(no clip) - residual(99.9%)| for accuracy
 CLIPS = {"q999": 0.999, "q99": 0.99, "none": None}
 BASE_RATE_GRID = (20000, 150000, 1000)   # base-rate anchoring: search grid (inclusive), $1000 steps
@@ -96,6 +96,13 @@ def labels_for(df, year, thr):
 
 def rows_for(year, seed, df, train_year=2014):
     return state_split(df, seed) if year == train_year else np.ones(len(df), bool)
+
+
+def dp_race_of(pred, df):
+    """White - Black positive rate only (NaN if a group is empty: reported as not computable, prereg 7.5)."""
+    r = df["RAC1P"].to_numpy()
+    w, b = r == WHITE, r == BLACK
+    return float(pred[w].mean() - pred[b].mean()) if w.any() and b.any() else float("nan")
 
 
 def est_u(pred, y, df):
@@ -177,6 +184,8 @@ def decompose(name, seed, year, frames, thr, label_key="nominal"):
                     "share_2014_p_below_0.01": float((p[:len(X0)] < 0.01).mean()),
                     "share_target_p_above_0.99": float((p[len(X0):] > 0.99).mean()),
                     "max_smd_by_group": {g: max_smd(X0, w, X1, a, b) for g, (a, b) in groups.items()},
+                    "max_smd_by_group_before_reweighting": {g: max_smd(X0, np.ones(len(X0)), X1, a, b)
+                                                            for g, (a, b) in groups.items()},
                     "max_smd_all": max_smd(X0, w, X1, np.ones(len(X0), bool), np.ones(len(X1), bool))}
     prim = by_clip["q999"]
     dp_check = {g: {"residual": prim["residual"][f"dp_{g}"], "passes": abs(prim["residual"][f"dp_{g}"]) <= CHECK_TOL}
@@ -209,10 +218,14 @@ def domain_auc(Xa, Xb, ga, gb, seed=0):
     return dfl_weights(Xa, Xb, ga, gb, seed)[1]
 
 
-def p1_auc(frames, states, year):
+def p1_auc(frames, states, year, drop=()):
+    """drop: harmonised features left out of the domain classifier (sensitivity: place of birth separates states
+    almost by construction, because most people live in the state where they were born)."""
+    from harmonise import HARMONISED_FEATURES
+    keep = [i for i, f in enumerate(HARMONISED_FEATURES) if f not in drop]
     f0, f1 = frames[2014], frames[year]
     st0, st1 = f0["ST"].to_numpy(), f1["ST"].to_numpy()
-    X0, X1 = design(f0, "harmonised"), design(f1, "harmonised")
+    X0, X1 = design(f0, "harmonised")[:, keep], design(f1, "harmonised")[:, keep]
     h0, h1 = household_ids(f0), household_ids(f1)
     res = {}
     for s in states:
@@ -309,16 +322,17 @@ def main():
         name = f"state{st}_post_dp_race_s0"
         p14, pt = load_pred(name, 2014, f14), load_pred(name, Y_RACE, ft)
         own = (st14 == st) & test14
-        dp_own14 = point(p14[own], y14[own], f14[own].reset_index(drop=True))["dp_race"]
+        dp_own14 = dp_race_of(p14[own], f14[own])
         m_t = stt == st
-        dp_own_t = point(pt[m_t], yt[m_t], ft[m_t].reset_index(drop=True))["dp_race"]
-        geo = [point(p14[st14 == o], y14[st14 == o], f14[st14 == o].reset_index(drop=True))["dp_race"]
-               for o in margins["states"] if o != st]
+        dp_own_t = dp_race_of(pt[m_t], ft[m_t])
+        geo = [dp_race_of(p14[st14 == o], f14[st14 == o]) for o in margins["states"] if o != st]
         per_state[str(st)] = {"dp_own_2014": dp_own14, "dp_own_later": dp_own_t,
-                              "median_abs_dp_other_states_2014": float(np.median(np.abs(geo)))}
-    k = sum(abs(v["dp_own_later"]) < v["median_abs_dp_other_states_2014"] for v in per_state.values())
+                              "median_abs_dp_other_states_2014": float(np.nanmedian(np.abs(geo)))}
+    ok = {k_: v for k_, v in per_state.items() if np.isfinite(v["dp_own_later"])
+          and np.isfinite(v["median_abs_dp_other_states_2014"])}
+    k = sum(abs(v["dp_own_later"]) < v["median_abs_dp_other_states_2014"] for v in ok.values())
     res["8.8_state_post_processing"] = {"by_state": per_state, "states_where_temporal_transfer_is_better": k,
-                                        "n_states": len(per_state)}
+                                        "n_states": len(per_state), "n_states_computable": len(ok)}
 
     # 8.9 deployment in 2018: seed-mean levels, and changes from the 2018 test split with mean per-seed SEs
     later = [y for y in YEARS if y > 2018]
@@ -344,6 +358,7 @@ def main():
 
     if not a.skip_p1:
         res["8.5_P1"] = p1_auc(frames, margins["states"], Y_RACE)
+        res["8.5_P1_without_birthplace"] = p1_auc(frames, margins["states"], Y_RACE, drop=("POBP_H",))
     (OUT / "secondary.json").write_text(json.dumps(res, indent=1, default=float))
     print(json.dumps({"thresholds": thr["inflation"], "base_rate_thr": thr["base_rate"],
                       "8.2": {k: v["decision"] for k, v in band.items()},

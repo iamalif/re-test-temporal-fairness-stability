@@ -51,7 +51,8 @@ def main():
             v_split = float(np.mean([e.cov[k, k] for e in splits[wt]]))
             v_full = float(full[wi].cov[k, k])
             s_between = float(theta.var(ddof=1))
-            r = v_split / (v_full + s_between)
+            den = v_full + s_between
+            r = v_split / den if den > 0 else 1.0        # degenerate metric (no variation): no adjustment
             res[m] = {"V_full": v_full, "S_between_splits": s_between, "V_split_mean": v_split, "ratio": r,
                       "variance_multiplier": max(1.0, 1.0 / r),
                       "mc_se_of_S": s_between * np.sqrt(2 / (K - 1))}

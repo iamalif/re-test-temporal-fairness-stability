@@ -154,8 +154,12 @@ def main():
             k = METRICS.index("dp_race")
             for st in margins["states"]:
                 name = f"state{st}_gbm_s0"
-                e0 = estimate(name, 2014, frames[2014], 0, rows=(frames[2014]["ST"] == st).to_numpy())[wi]
-                e1 = estimate(name, Y_RACE, frames[Y_RACE], 0, rows=(frames[Y_RACE]["ST"] == st).to_numpy())[wi]
+                try:
+                    e0 = estimate(name, 2014, frames[2014], 0, rows=(frames[2014]["ST"] == st).to_numpy())[wi]
+                    e1 = estimate(name, Y_RACE, frames[Y_RACE], 0, rows=(frames[Y_RACE]["ST"] == st).to_numpy())[wi]
+                except NotComputable as e:
+                    detail[str(st)] = {"decision": "not computable", "reason": str(e)}
+                    continue
                 dlt, cov = change(e1, e0)
                 se = float(np.sqrt(cov[k, k]))
                 t, g = noise_corrected_abs(dlt["dp_race"], se), mg["G_by_source_state"]["dp_race"][str(st)]

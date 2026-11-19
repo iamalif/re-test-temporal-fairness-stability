@@ -22,7 +22,7 @@ sys.path.insert(0, str(ROOT / "src"))
 import numpy as np
 from scipy import stats
 
-from analysis import METRICS, compare_stability, three_way
+from analysis import G_FLOOR, METRICS, compare_stability, three_way
 
 ALPHA = 0.05 / 6          # confirmatory family C1, C2, C3, C4, C6, C7 (C5 secondary: power, C8 descriptive)
 SEEDS = range(5)
@@ -146,7 +146,7 @@ def main():
                       f"  P(inconcl)={r0['p_inconclusive']:.3f};  holds needs |est| <= {v['max_abs_estimate_for_holds']:.4f}")
         if which in ("all", "part2"):
             c2 = np.array(se["C7_cov"])
-            gf, ga = MARG[wt]["G"]["dp_race"], MARG[wt]["G"]["accuracy"]
+            gf, ga = max(MARG[wt]["G"]["dp_race"], G_FLOOR), max(MARG[wt]["G"]["accuracy"], G_FLOOR)
             settings = [("anticipated", c2)]
             if wt == "unweighted":
                 s = np.sqrt(np.diag(c2))

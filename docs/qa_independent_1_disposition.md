@@ -26,3 +26,15 @@ No 2019+ data has been opened; all validation below uses synthetic data or 2014�
 | 18 | minor | **Accepted** | "Recovered from vector graphics to about four decimal places"; legend mapping described as a manual assignment with visual verification; required-series assertion before macros. | No. | — | — |
 | 19 | minor | **Accepted** | Pooling fallback, unseen categories, zero-denominator/non-finite policy, ties, base-rate grid bounds ($20k–$150k, boundary hit reported, lowest threshold on ties) written into the prereg; finiteness asserted before decisions. | No. | — | prereg |
 | 20 | minor | **Accepted** | Manuscript, prereg header, docstrings and universe definition reconciled (2018-trained models; filters stated explicitly; loader as an enabling artifact). | No. | — | before archive |
+
+## Status after implementation (20 Nov 2026, before the Stage A rerun)
+
+All code changes above are implemented and were rehearsed end to end (decision log D024): full production code
+paths on real 2014–2018 subsamples and synthetic stand-ins for later years, including integrity tests (all
+tampering cases detected) and the output checklist. Additional changes found during the rehearsal are in D024
+(balance threshold 0.05, P1 without place of birth, not-computable handling, inventory records).
+Simulation results already available: the earlier C7 interval had minimum coverage 0.93 (target 0.992); the new
+one ≥ 0.995, max P(wrong direction) 0.004. C5's P(holds | θ = 0) is 0.31 unweighted and 0.00 weighted.
+Waiting for the Stage A rerun (Mac, 6–7 h): the refitted models, split-variance multipliers (#14), Stage A
+calibration constants, the real-data decomposition check (#11), and the final operating characteristics (#10).
+The plan's ⟨A⟩ values are filled from those files afterwards.

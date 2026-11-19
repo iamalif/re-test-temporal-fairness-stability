@@ -354,3 +354,24 @@ Report: docs/qa_independent_1_report.md; point-by-point disposition: docs/qa_ind
   prereg/OUTPUT_CHECKLIST.md enforced by scripts/check_outputs.py.
 - Pending at the time of writing: Stage A rerun on the Mac (refit, predictions, split variance, Stage A analysis,
   decomposition check, inference validation, integrity tests), then prereg and paper text, then QA round 2.
+
+## D024 - 2026-11-20 - End-to-end rehearsal before the Stage A rerun (no real 2019+ data)
+- Rehearsal of the whole chain with the production (non-smoke) code paths in a throw-away sandbox: real 2014-2018
+  person records subsampled to 60,000 rows a year; SYNTHETIC stand-ins for 2019 and 2021-2024 built from 2018 rows
+  (incomes scaled, RELP recoded to RELSHIPP, new SERIALNOs); 30 trees instead of 100 to fit the time limit;
+  everything else as registered (88 models, 5 seeds, 20 states, ExpGrad, LFR). Steps run: fit, predict 2014-2018,
+  split-variance check, Stage A analysis, decomposition check, inference validation, integrity tests,
+  check_outputs stage_a, predict for the stand-in later years, confirmatory, secondary (P1 on 3 states), all passing.
+  No real later-year record was created or read; the sandbox is outside the repository.
+- Fixes from the rehearsal: check_split_variance divides by zero for a constant metric (now no adjustment);
+  validate_inference used unfloored yardsticks (now floored as in C7); geographic yardsticks, C8 and 8.8 aborted on a
+  state with an empty group (now recorded as not computable, per prereg 7.5; does not occur in the real 2014 data,
+  where the smallest relevant count is 20); the inventory record kept only the last check (now one record per set
+  of years, so Stage A and Stage B both remain visible).
+- Decomposition balance threshold changed from 0.10 to 0.05 before any real use: on the real 2014 -> 2018 data
+  (domain classifier only; no model predictions involved) the largest group-wise standardised mean difference is
+  0.046-0.051 BEFORE reweighting, so a 0.10 rule could not fail. After reweighting it is 0.004-0.019, ESS 0.98.
+  The output now also reports the before-reweighting values.
+- P1 additionally reported without place of birth in the domain classifier: place of birth separates states almost
+  by construction (rehearsal: geographic AUC about 0.9 with it, 0.65-0.71 without), which would make P1 nearly
+  automatic.

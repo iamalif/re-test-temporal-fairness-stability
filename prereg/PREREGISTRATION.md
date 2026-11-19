@@ -1,6 +1,6 @@
 # Pre-registration: Does fairness stay put? A re-test of temporal fairness stability on ACS 2014–2024
 
-**Status:** DRAFT v0.3 (19 Nov 2026). Changes since v0.2: decision log D021–D023, the last in response to an
+**Status:** DRAFT v0.3 (20 Nov 2026). Changes since v0.2: decision log D021–D024, D023 in response to an
 independent review (`docs/qa_independent_1_report.md`, disposition in `docs/qa_independent_1_disposition.md`).
 Not yet archived. Values marked ⟨A⟩ are filled from Stage A result files once the Stage A rerun finishes; the rules
 that produce them are fixed here.
@@ -223,8 +223,11 @@ intervals, in the main text.
 
 ### 7.5 Numerical failures and ties
 An estimate whose group or denominator is empty, or any non-finite estimate or standard error, is reported as
-"not computable" for the affected claim (never dropped or replaced). C8 ties (equal noise-corrected changes, which
-the truncation at zero can produce) are counted separately.
+"not computable" for the affected claim (never dropped or replaced). For the geographic yardsticks, a state pair
+that is not computable is recorded as such and left out of the median, and the number of such pairs is reported
+(on 2014 every pair is computable: the smallest count of Black persons with income above $50,000 in a source state's
+test split is 20). In C8 and 8.8, a state that is not computable is reported as such and left out of the counts.
+C8 ties (equal noise-corrected changes, which the truncation at zero can produce) are counted separately.
 
 ### 7.6 Anticipated operating characteristics
 At the standard errors anticipated from 2014–2018 (later year approximated by 2018 on all rows; baseline variance
@@ -263,14 +266,17 @@ Diagnostics: domain AUC, effective sample size, largest weight relative to the m
 absolute standardised mean difference of the features after reweighting within White, Black, male and female rows.
 **Reliability rule:** the decomposition is interpreted only if (i) the DP residual is within ±0.005 for race and for
 sex (a frozen model's DP depends only on the features, so it must be near zero), (ii) the largest group-wise
-standardised mean difference is at most 0.10, and (iii) the accuracy residual changes by at most 0.005 between 99.9%
+standardised mean difference is at most 0.05 (stricter than the usual 0.10 because temporal shifts are small: on
+2014 → 2018 the largest group-wise difference before reweighting is about 0.05, so 0.10 could not discriminate), and (iii) the accuracy residual changes by at most 0.005 between 99.9%
 clipping and no clipping. Otherwise the split is reported as unreliable and P2 is not assessed. Passing is a
 necessary check, not proof that the residual is a label change. The rule was run before archiving on 2014 → 2018
 (`results/stage_a/decomposition_2018_check.json`): ⟨A⟩.
 
 8.5 **Theory predictions:**
 - P1 (Chen et al. 2022): covariate shift is larger across states than over time. Shift magnitude = cross-fitted AUC
-  of the domain classifier. Prediction: for most of the 20 states, AUC(s, 2014 → s, 2019) < median AUC(s → s′, 2014).
+  of the domain classifier (household-grouped folds). Prediction: for most of the 20 states, AUC(s, 2014 → s, 2019)
+  < median AUC(s → s′, 2014). Because place of birth separates states almost by construction (most people live in
+  their state of birth), P1 is also reported with place of birth left out of the domain classifier.
 - P2 (Chen et al. 2022): over time the change is mostly in the labels. Prediction: the residual in 8.4 is larger in
   magnitude than the composition part for accuracy and EO. Assessed only when 8.4 is reliable.
 - P3 (Asiaee and Aryan 2026): under group-conditional prior shift alone, a frozen model's EO is unchanged and its
@@ -286,7 +292,8 @@ in several mappings and in their fitted models; not an identified effect of occu
 
 8.8 **Constraint transfer across states:** for each of the 20 per-state DP-post-processed models, |DP_race| in its own
 state in 2019 against the median |DP_race| when applied to the other 19 states in 2014; we report the number of
-states where the constraint transfers better over time than across states (descriptive).
+states where the constraint transfers better over time than across states (descriptive), and the number of states
+for which the comparison is computable.
 
 8.9 **Deployment in 2018:** for the 2018-trained models, every metric's level and its change from the 2018 test
 split to 2019 and 2021–2024, with standard errors (seed means). Descriptive: the 2014–2018 calibration constants do

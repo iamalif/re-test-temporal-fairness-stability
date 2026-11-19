@@ -103,7 +103,7 @@ def base_model(seed: int):
 # ---------------- fitted predictors ----------------
 
 class Frozen:
-    """A fitted predictor with its frozen preprocessing. predict(df) -> bool array for all rows of df."""
+    """A fitted predictor with its frozen preprocessing. predict(df) -> expected predictions for all rows of df."""
 
     def __init__(self, name, features, scaler, kind, model, group=None, seed=0, lfr=None, keep=None):
         self.name, self.features, self.scaler, self.kind = name, features, scaler, kind
@@ -441,9 +441,13 @@ def verify_inventory(years, write_record: bool = True) -> dict:
         problems.append(f"{len(states)} source states, expected {N_STATES}")
     rec = {"checked_years": list(years), "n_models": len(manifest), "problems": problems,
            "time": time.strftime("%Y-%m-%dT%H:%M:%S")}
-    if write_record:
+    if write_record:                    # one record per set of checked years (Stage A and Stage B keep theirs)
         out = (MANIFEST.parent / ("inventory_check.json" if not SMOKE else "smoke_inventory_check.json"))
-        out.write_text(json.dumps(rec, indent=1))
+        allrec = json.loads(out.read_text()) if out.exists() else {}
+        if "checked_years" in allrec:   # older single-record format
+            allrec = {}
+        allrec["-".join(map(str, sorted(years)))] = rec
+        out.write_text(json.dumps(allrec, indent=1))
     if problems:
         raise RuntimeError("inventory check failed:\n  " + "\n  ".join(problems[:30]))
     return rec
