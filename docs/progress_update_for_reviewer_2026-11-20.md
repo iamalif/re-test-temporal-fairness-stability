@@ -2,7 +2,7 @@
 
 Thank you for the first review (`docs/qa_independent_1_report.md`). This note says what has changed since then
 and asks for a second review. The detailed responses are in `docs/qa_independent_1_disposition.md`, and the
-reasons are in `logs/decision_log.md`, entries D023 and D024. Please verify the changes yourself rather than taking
+reasons are in `logs/decision_log.md`, entries D023 to D025. Please verify the changes yourself rather than taking
 these documents at their word.
 
 ## Where the project stands
@@ -65,6 +65,9 @@ these documents at their word.
     `scripts/check_outputs.py` checks them.
 13. **Rehearsal (D024).** The whole chain was run on real 2014–2018 subsamples, with synthetic stand-ins for the
     later years and fewer trees. It exposed four small robustness bugs, all now fixed.
+14. **Second audit (D025).** The data dictionaries for 2017–2024 were compared code by code, and the harmonised
+    2014–2018 data checked for missing values and unknown codes. The manuscript compiles cleanly. This audit
+    changed no fitting or prediction code.
 
 ## What I am asking for
 

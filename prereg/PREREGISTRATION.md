@@ -27,7 +27,9 @@ and whether the race DP gap changes less than accuracy relative to geographic ya
 
 - **Original cohort, 2014–2018 (allowed):** all person records were downloaded and analysed: data counts, feature
   distributions, the reconstruction of Figures 4 and 13 (decision log D012–D015), and every Stage A result
-  (metrics of the frozen models on 2014–2018, margins, yardsticks, decomposition check, split-variance check).
+  (metrics of the frozen models on 2014–2018, margins, yardsticks, decomposition check and its balance
+  diagnostics, split-variance check). A rehearsal of the full chain (D024) used synthetic stand-ins for the later
+  years, built from 2018 records; no real later-year record was involved.
 - **2019 and later:** no person record has been downloaded or read. Only directory listings, file sizes, data
   dictionaries and documentation (including variable-change notes) were used.
 - **Literature with post-2018 outcome content:** we read the design but not the results of Ceross (arXiv
@@ -237,6 +239,8 @@ errors and the probability of "holds" at θ = 0 (unweighted / weighted): ⟨A⟩
 including zeros and the boundary D = 0, at the anticipated covariance and under stress settings: minimum ⟨A⟩.
 
 ## 8. Secondary analyses (pre-specified, no family-wise claim; 95% intervals)
+
+Secondary analyses are unweighted unless stated.
 
 8.1 **Trajectories:** every metric for every model, years 2014–2019 and 2021–2024, with intervals, for both label
 rules `>` and `>=`. Race-based values for 2021–2024 are shown separately with the comparability caveat.

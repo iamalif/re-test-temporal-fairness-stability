@@ -375,3 +375,15 @@ Report: docs/qa_independent_1_report.md; point-by-point disposition: docs/qa_ind
 - P1 additionally reported without place of birth in the domain classifier: place of birth separates states almost
   by construction (rehearsal: geographic AUC about 0.9 with it, 0.65-0.71 without), which would make P1 nearly
   automatic.
+
+## D025 - 2026-11-20 - Second pre-run audit (no changes to fitting or prediction code)
+- Dictionaries 2017-2024: code sets and labels of COW, SCHL, MAR, SEX, RAC1P identical in every year (labels compared
+  case-insensitively); POBP differs only by the three registered deletions (456 from 2022, 463 in 2024; 208 is
+  absent from all CSV dictionaries); OCCP code lists identical 2018-2024, label prefixes identical apart from 1555 and
+  8000 (missing in 2018 only, already handled); RELSHIPP present from 2019, RELP up to 2018; ST named STATE in
+  2023-2024.
+- Data 2014-2018 after harmonisation: no missing values in any harmonised feature; every COW, SCHL, MAR and POBP code
+  is in the dictionary except POBP 208 (handled); RELP_H categories in 2014-2018 equal the RELSHIPP mapping's targets.
+- Manuscript compiles without undefined references or citations (latexmk, TMLR style).
+- Plan: secondary analyses stated as unweighted; exposure record lists the decomposition balance diagnostics and the
+  synthetic-stand-in rehearsal. README status updated.
