@@ -43,3 +43,10 @@ data/derived/smoke*
 # draft PDFs (rebuild from source)
 paper/*.pdf
 results/smoke/models_manifest.json
+
+# interrupted downloads and atomic-write temporaries
+*.part
+*.tmp
+*.tmp.npy
+*.tmp.json
+*.joblib.tmp

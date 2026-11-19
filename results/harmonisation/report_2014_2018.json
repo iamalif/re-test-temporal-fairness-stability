@@ -8,7 +8,8 @@
     "456": 0,
     "463": 183
    },
-   "share_rows_in_cross_group_2010_codes": 0.03525760522364749
+   "rows_in_destination_override_codes": 31213,
+   "share_rows_in_codes_with_cross_group_edges": 0.05491492931348938
   },
   "2015": {
    "rows": 1603542,
@@ -18,7 +19,8 @@
     "456": 0,
     "463": 187
    },
-   "share_rows_in_cross_group_2010_codes": 0.03642561279966474
+   "rows_in_destination_override_codes": 32391,
+   "share_rows_in_codes_with_cross_group_edges": 0.05662527080675155
   },
   "2016": {
    "rows": 1618060,
@@ -28,7 +30,8 @@
     "456": 0,
     "463": 184
    },
-   "share_rows_in_cross_group_2010_codes": 0.03713891944674487
+   "rows_in_destination_override_codes": 32587,
+   "share_rows_in_codes_with_cross_group_edges": 0.057278469278024303
   },
   "2017": {
    "rows": 1642973,
@@ -38,7 +41,8 @@
     "456": 62,
     "463": 33
    },
-   "share_rows_in_cross_group_2010_codes": 0.03797749567400073
+   "rows_in_destination_override_codes": 32972,
+   "share_rows_in_codes_with_cross_group_edges": 0.05804599345211394
   },
   "2018": {
    "rows": 1664500,
@@ -48,83 +52,162 @@
     "456": 59,
     "463": 54
    },
-   "share_rows_in_cross_group_2010_codes": null
+   "rows_in_destination_override_codes": 0,
+   "share_rows_in_codes_with_cross_group_edges": null
   }
  },
  "occp_crosswalk": {
   "edges": 189,
-  "cross_group_edges": [
+  "whole_cross_group_moves": {
+   "4610": "HLS",
+   "5620": "TRN",
+   "5800": "CMM"
+  },
+  "split_codes_with_cross_group_destination": [
+   {
+    "code_2010": 430,
+    "own_group": "MGR",
+    "destination_groups": [
+     "BUS",
+     "MGR"
+    ],
+    "own_group_among_destinations": true
+   },
+   {
+    "code_2010": 1107,
+    "own_group": "CMM",
+    "destination_groups": [
+     "BUS",
+     "CMM"
+    ],
+    "own_group_among_destinations": true
+   },
+   {
+    "code_2010": 2160,
+    "own_group": "LGL",
+    "destination_groups": [
+     "ENT",
+     "LGL"
+    ],
+    "own_group_among_destinations": true
+   },
+   {
+    "code_2010": 2900,
+    "own_group": "ENT",
+    "destination_groups": [
+     "ENT",
+     "OFF"
+    ],
+    "own_group_among_destinations": true
+   },
+   {
+    "code_2010": 3540,
+    "own_group": "MED",
+    "destination_groups": [
+     "MED",
+     "SCI"
+    ],
+    "own_group_among_destinations": true
+   },
+   {
+    "code_2010": 4320,
+    "own_group": "PRS",
+    "destination_groups": [
+     "PRS",
+     "TRN"
+    ],
+    "own_group_among_destinations": true
+   },
+   {
+    "code_2010": 9520,
+    "own_group": "TRN",
+    "destination_groups": [
+     "EXT",
+     "TRN"
+    ],
+    "own_group_among_destinations": true
+   },
+   {
+    "code_2010": 9820,
+    "own_group": "MIL",
+    "destination_groups": [
+     "ENG",
+     "MIL"
+    ],
+    "own_group_among_destinations": true
+   }
+  ],
+  "edges_to_codes_not_in_pums_dictionary": [
    [
     430,
-    705,
-    "MGR",
-    "BUS"
+    [
+     426
+    ]
    ],
    [
-    1107,
-    705,
-    "CMM",
-    "BUS"
+    3060,
+    [
+     3065,
+     3070
+    ]
    ],
    [
-    2160,
-    2170,
-    "ENT",
-    "LGL"
-   ],
-   [
-    2160,
-    2180,
-    "ENT",
-    "LGL"
-   ],
-   [
-    2900,
-    2905,
-    "OFF",
-    "ENT"
-   ],
-   [
-    3540,
-    3550,
-    "SCI",
-    "MED"
-   ],
-   [
-    4320,
-    4330,
-    "TRN",
-    "PRS"
+    3730,
+    [
+     3735
+    ]
    ],
    [
     9520,
-    9570,
-    "EXT",
-    "TRN"
-   ],
-   [
-    9520,
-    9760,
-    "EXT",
-    "TRN"
-   ],
-   [
-    9820,
-    1555,
-    "MIL",
-    "ENG"
+    [
+     6821
+    ]
    ]
   ],
-  "edges_with_code_not_in_pums_dictionaries": 22
+  "destination_group_matches_crosswalk": true
  },
  "largest_2018_jumps": {
   "MGR": 0.00509,
   "BUS": 0.00469,
-  "OFF": 0.00154,
-  "MED": 0.00116,
-  "LGL": 0.00108,
-  "TRN": 0.00092,
-  "ENT": 0.00082,
-  "PRS": 0.0008
+  "TRN": 0.00123,
+  "OFF": 0.00079,
+  "EAT": 0.00072,
+  "PRT": 0.00067,
+  "CMM": 0.00066,
+  "SAL": 0.00064
+ },
+ "max_abs_jump_by_population": {
+  "all": 0.0050907372141924395,
+  "black": 0.0043541844407190555,
+  "female": 0.004758774998629103,
+  "male": 0.00535156796034468,
+  "white": 0.005621796624861716
+ },
+ "race_gap_in_jumps": {
+  "BUS": 0.003205711931111282,
+  "CLN": -0.00037395384655976305,
+  "CMM": 0.0001649680706780378,
+  "CMS": 2.3122537910702512e-05,
+  "CON": 0.002004550647281056,
+  "EAT": 0.000626850374875372,
+  "EDU": -0.0015106546676706065,
+  "ENG": 0.0007544832653001519,
+  "ENT": 0.0002279838022653819,
+  "EXT": 0.00012447639366970728,
+  "FFF": -0.0005269995370615842,
+  "FIN": -0.0006893725849982796,
+  "HLS": 0.0007401057822551335,
+  "LGL": -0.0005726955735789489,
+  "MED": -0.004761092957057289,
+  "MGR": -0.00340761836141365,
+  "MIL": -0.00021147135354203676,
+  "OFF": 9.113462484586221e-05,
+  "PRD": 0.001361302933966739,
+  "PRS": 5.69510144486432e-05,
+  "PRT": -0.00021193396287092284,
+  "RPR": -0.00056043376305729,
+  "SAL": 0.0015053424233441998,
+  "SCI": -0.00018337482477008994,
+  "TRN": 0.0021226176306281402
  }
 }

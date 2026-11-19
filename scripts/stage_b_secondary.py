@@ -1,14 +1,15 @@
 """Stage B, secondary analyses (pre-registration section 8). Runs only after archiving (src/data.py guard).
+Secondary analyses are outside the family-wise error control; intervals are 95% unless stated.
 
-  8.2 other interventions (ExpGrad DP, LFR): |DP(2019)| within their own 2014-2018 band (rule C3)
+  8.2 other interventions (ExpGrad DP, LFR, EO post-processing): within their own 2014-2018 envelope (rule C3)
   8.3 label definitions: nominal '>', '>=', inflation-anchored, base-rate-anchored (accuracy and EO)
-  8.4 DiNardo-Fortin-Lemieux decomposition of change into composition and conditional components,
-      with the built-in DP check (|DP conditional component| <= 0.005)
+  8.4 DiNardo-Fortin-Lemieux reweighting: change split into a composition part and a residual
+      ("conditional change plus approximation error"), with reliability diagnostics that govern interpretation
   8.5 theory predictions P1-P3 (P1 uses per-state domain-classifier AUCs; slow: about 400 classifiers)
-  8.6 original-pipeline view: the seed-0 GBM with each year standardised separately
+  8.6 per-year-scaling pipeline: the frozen peryear_gbm models (each year standardised with its own scaler)
   8.8 per-state DP-post-processed models: |DP| in the own state later vs in other states in 2014
-  8.9 models deployed in 2018 instead of 2014: change from 2018 to each later year
-Writes results/stage_b/secondary_*.json / .csv.  Usage: uv run python scripts/stage_b_secondary.py [--skip-p1]
+  8.9 models deployed in 2018 instead of 2014: change from 2018 to each later year, with SEs
+Writes results/stage_b/secondary.json and secondary_labels.csv.  Usage: python scripts/stage_b_secondary.py [--skip-p1]
 """
 import argparse
 import json
@@ -18,20 +19,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-import joblib
 import numpy as np
 import openpyxl
 import pandas as pd
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedGroupKFold
 
-from analysis import METRICS, Estimate, household_ids, point, three_way, unweighted
-from common import load_year, state_split
-from harmonise import HARMONISED_FEATURES
-from pipeline import MODELS, SEEDS, SMOKE, Scaler, design, load_pred, year_frame
+from analysis import METRICS, Estimate, change, household_ids, inflate, point, split_multiplier, three_way, unweighted
+from common import BLACK, WHITE, load_year, state_split
+from pipeline import SEEDS, SMOKE, design, load_pred, year_frame
 
-ALPHA = 0.05 / 8
+ALPHA = 0.05                       # secondary: per-analysis level, no family-wise claim
 Y_RACE, Y_SEX = 2019, 2024
 YEARS = (2014, 2015, 2016, 2017, 2018, 2019, 2021, 2022, 2023, 2024)
 OUT = ROOT / "results" / "stage_b"
@@ -39,13 +38,17 @@ STAGE_A = ROOT / "results" / "stage_a"
 if SMOKE:
     Y_RACE, Y_SEX, YEARS = 2017, 2018, (2014, 2015, 2016, 2017, 2018)
     OUT, STAGE_A = ROOT / "data" / "derived" / "smoke_stage_b", ROOT / "data" / "derived" / "smoke_stage_a"
-CHECK_TOL = 0.005
+CHECK_TOL = 0.005                  # DP falsification check of the decomposition
+SMD_TOL = 0.10                     # balance: max |standardised mean difference| after reweighting, per group
+CLIP_TOL = 0.005                   # clipping sensitivity: |residual(no clip) - residual(99.9%)| for accuracy
+CLIPS = {"q999": 0.999, "q99": 0.99, "none": None}
+BASE_RATE_GRID = (20000, 150000, 1000)   # base-rate anchoring: search grid (inclusive), $1000 steps
 
 
 # ---------------- data and labels ----------------
 
 def frame(year):
-    df = year_frame(year)                                  # harmonised features + PINCP, ST, PWGTP ...
+    df = year_frame(year)                                  # harmonised features + PINCP, ST, SERIALNO, PWGTP ...
     adj = load_year(year, columns=["ADJINC"])["ADJINC"]
     if SMOKE:
         adj = adj.sample(n=int(SMOKE), random_state=0).reset_index(drop=True)
@@ -62,19 +65,25 @@ def cpi_annual() -> dict[int, float]:
 
 
 def thresholds(frames: dict) -> dict:
-    """Inflation-anchored (c) and base-rate-anchored (d) thresholds per year (section 8.3)."""
+    """Inflation-anchored and base-rate-anchored thresholds per year (section 8.3).
+    Base-rate anchoring: the threshold on the $1000 grid [20000, 150000] whose share above it (strict >) is closest
+    to the 2014 nominal share; ties go to the lowest threshold; a grid-boundary solution is flagged."""
     cpi = cpi_annual()
-    adj = {y: float(f["ADJINC"].iloc[0]) for y, f in frames.items()}
     for y, f in frames.items():
         assert f["ADJINC"].nunique() == 1, f"ADJINC not constant in {y}"
-    out = {"cpi": {y: cpi[y] for y in frames}, "adjinc": adj, "inflation": {}, "base_rate": {}}
+    adj = {y: float(f["ADJINC"].iloc[0]) for y, f in frames.items()}
+    out = {"cpi": {y: cpi[y] for y in frames}, "adjinc": adj, "inflation": {}, "base_rate": {},
+           "base_rate_at_grid_boundary": {}}
     p14 = float((frames[2014]["PINCP"] > 50000).mean())
-    grid = np.arange(20000, 150001, 1000)
+    lo, hi, step = BASE_RATE_GRID
+    grid = np.arange(lo, hi + 1, step)
     for y, f in frames.items():
         out["inflation"][y] = float(round(50000 * adj[2014] / adj[y] * cpi[y] / cpi[2014], -3))
         inc = f["PINCP"].to_numpy()
         rates = np.array([(inc > t).mean() for t in grid])
-        out["base_rate"][y] = float(grid[np.argmin(np.abs(rates - p14))])
+        t = float(grid[np.argmin(np.abs(rates - p14))])          # argmin returns the first (lowest) on ties
+        out["base_rate"][y] = t
+        out["base_rate_at_grid_boundary"][y] = t in (lo, hi)
     out["base_rate_2014_nominal"] = p14
     return out
 
@@ -85,23 +94,56 @@ def labels_for(df, year, thr):
             "inflation": inc > thr["inflation"][year], "base_rate": inc > thr["base_rate"][year]}
 
 
-def rows_for(year, seed, df):
-    return state_split(df, seed) if year == 2014 else np.ones(len(df), bool)
+def rows_for(year, seed, df, train_year=2014):
+    return state_split(df, seed) if year == train_year else np.ones(len(df), bool)
+
+
+def est_u(pred, y, df):
+    return Estimate.from_unweighted(unweighted(pred, y, df), household_ids(df))
 
 
 # ---------------- 8.4 decomposition ----------------
 
-def dfl_weights(X0, X1, seed=0):
-    """Cross-fitted odds weights that reweight sample 0 to the feature distribution of sample 1."""
+def domain_probs(X0, X1, g0, g1, seed=0):
+    """Cross-fitted P(sample = 1 | x) for the pooled rows. Folds keep households together (a household is never
+    split between fitting and prediction), stratified by sample."""
     X = np.vstack([X0, X1]); d = np.r_[np.zeros(len(X0)), np.ones(len(X1))]
+    groups = np.r_[np.char.add("a", np.asarray(g0, str)), np.char.add("b", np.asarray(g1, str))]
     p = np.zeros(len(X))
-    for tr, te in StratifiedKFold(5, shuffle=True, random_state=seed).split(X, d):
+    for tr, te in StratifiedGroupKFold(5, shuffle=True, random_state=seed).split(X, d, groups):
         clf = HistGradientBoostingClassifier(random_state=seed).fit(X[tr], d[tr])
         p[te] = clf.predict_proba(X[te])[:, 1]
-    p0 = np.clip(p[: len(X0)], 1e-6, 1 - 1e-6)
-    w = p0 / (1 - p0) * len(X0) / len(X1)
-    w = np.minimum(w, np.quantile(w, 0.999))
-    return w, float(roc_auc_score(d, p))
+    return p, d
+
+
+def odds_weights(p, n0, n1, clip_q):
+    p0 = np.clip(p[:n0], 1e-6, 1 - 1e-6)
+    w = p0 / (1 - p0) * n0 / n1
+    clipped = 0.0
+    if clip_q is not None:
+        cap = np.quantile(w, clip_q)
+        clipped = float((w > cap).mean())
+        w = np.minimum(w, cap)
+    return w, clipped
+
+
+def dfl_weights(X0, X1, g0, g1, seed=0):
+    """Primary weights (99.9% clipping) and the cross-fitted domain AUC (household-grouped folds)."""
+    p, d = domain_probs(X0, X1, g0, g1, seed)
+    return odds_weights(p, len(X0), len(X1), 0.999)[0], float(roc_auc_score(d, p))
+
+
+def max_smd(X0, w, X1, mask0, mask1):
+    """Largest |standardised mean difference| over features between reweighted sample 0 and sample 1 in a group."""
+    a, b = X0[mask0], X1[mask1]
+    wa = w[mask0]
+    m0, m1 = np.average(a, axis=0, weights=wa), b.mean(0)
+    sd = np.sqrt((a.var(0) + b.var(0)) / 2)
+    ok = sd > 0
+    return float(np.max(np.abs(m0[ok] - m1[ok]) / sd[ok]))
+
+
+_DOMAIN_CACHE: dict = {}
 
 
 def decompose(name, seed, year, frames, thr, label_key="nominal"):
@@ -111,42 +153,72 @@ def decompose(name, seed, year, frames, thr, label_key="nominal"):
     X0, X1 = design(s0, "harmonised"), design(f1, "harmonised")
     y0 = labels_for(s0, 2014, thr)[label_key]
     y1 = labels_for(f1, year, thr)[label_key]
-    p0 = load_pred(name, 2014, len(f0))[r0]
-    p1 = load_pred(name, year, len(f1))
-    w, auc = dfl_weights(X0, X1, seed)
-    m0, m1, mcf = point(p0, y0, s0), point(p1, y1, f1), point(p0, y0, s0, w)
-    comp = {m: mcf[m] - m0[m] for m in METRICS}
-    cond = {m: m1[m] - mcf[m] for m in METRICS}
-    return {"model": name, "year": year, "label": label_key, "auc_2014_vs_year": auc,
-            "m2014": m0, "m_year": m1, "counterfactual": mcf, "composition": comp, "conditional": cond,
-            "dp_check": {g: {"conditional": cond[f"dp_{g}"], "passes": abs(cond[f"dp_{g}"]) <= CHECK_TOL}
-                         for g in ("race", "sex")}}
+    p0 = load_pred(name, 2014, f0)[r0]
+    p1 = load_pred(name, year, f1)
+    key = (seed, year)                      # the domain model does not depend on the label definition
+    if key not in _DOMAIN_CACHE:
+        _DOMAIN_CACHE[key] = domain_probs(X0, X1, household_ids(s0), household_ids(f1), seed)
+    p, d = _DOMAIN_CACHE[key]
+    auc = float(roc_auc_score(d, p))
+    m0, m1 = point(p0, y0, s0), point(p1, y1, f1)
+    by_clip, diag = {}, {}
+    for tag, q in CLIPS.items():
+        w, clipped = odds_weights(p, len(X0), len(X1), q)
+        mcf = point(p0, y0, s0, w)
+        by_clip[tag] = {"counterfactual": mcf, "composition": {m: mcf[m] - m0[m] for m in METRICS},
+                        "residual": {m: m1[m] - mcf[m] for m in METRICS}, "share_clipped": clipped}
+        if tag == "q999":
+            race0, race1 = s0["RAC1P"].to_numpy(), f1["RAC1P"].to_numpy()
+            sex0, sex1 = s0["SEX"].to_numpy(), f1["SEX"].to_numpy()
+            groups = {"white": (race0 == WHITE, race1 == WHITE), "black": (race0 == BLACK, race1 == BLACK),
+                      "male": (sex0 == 1, sex1 == 1), "female": (sex0 == 2, sex1 == 2)}
+            diag = {"ess_fraction": float(w.sum() ** 2 / (w ** 2).sum() / len(w)),
+                    "max_weight_over_mean": float(w.max() / w.mean()),
+                    "share_2014_p_below_0.01": float((p[:len(X0)] < 0.01).mean()),
+                    "share_target_p_above_0.99": float((p[len(X0):] > 0.99).mean()),
+                    "max_smd_by_group": {g: max_smd(X0, w, X1, a, b) for g, (a, b) in groups.items()},
+                    "max_smd_all": max_smd(X0, w, X1, np.ones(len(X0), bool), np.ones(len(X1), bool))}
+    prim = by_clip["q999"]
+    dp_check = {g: {"residual": prim["residual"][f"dp_{g}"], "passes": abs(prim["residual"][f"dp_{g}"]) <= CHECK_TOL}
+                for g in ("race", "sex")}
+    clip_shift = abs(by_clip["none"]["residual"]["accuracy"] - prim["residual"]["accuracy"])
+    reliable = (all(v["passes"] for v in dp_check.values())
+                and max(diag["max_smd_by_group"].values()) <= SMD_TOL and clip_shift <= CLIP_TOL)
+    return {"model": name, "year": year, "label": label_key, "auc_2014_vs_year": auc, "m2014": m0, "m_year": m1,
+            "counterfactual": prim["counterfactual"], "composition": prim["composition"],
+            "residual": prim["residual"], "by_clipping": by_clip, "diagnostics": diag,
+            "dp_check": dp_check, "clip_sensitivity_accuracy": clip_shift, "reliable": bool(reliable),
+            "interpretation": ("residual = conditional change plus approximation error" if reliable else
+                               "unreliable: composition/residual split not interpreted; P2 suppressed")}
 
 
 # ---------------- 8.5 theory predictions ----------------
 
 def p3_prior_shift(m0, m1, g):
-    """DP change predicted by group-conditional prior shift alone (Asiaee and Aryan), with 2014 TPR/FPR."""
+    """DP change predicted by group-conditional prior shift alone (Asiaee and Aryan), with 2014 TPR/FPR.
+    The ratio predicted/observed is unstable when the observed change is small and is not a variance share."""
     pred = sum(sign * (m0[f"tpr_{g}{k}"] - m0[f"fpr_{g}{k}"]) * (m1[f"base_rate_{g}{k}"] - m0[f"base_rate_{g}{k}"])
                for sign, k in ((1, "1"), (-1, "2")))
     obs = m1[f"dp_{g}"] - m0[f"dp_{g}"]
     return {"observed_dp_change": obs, "predicted_by_prior_shift": pred,
-            "share_explained": pred / obs if obs else None,
+            "ratio_predicted_to_observed": (pred / obs) if abs(obs) >= CHECK_TOL else None,
             "abs_eo_change": abs(m1[f"eo_{g}"] - m0[f"eo_{g}"]), "abs_dp_change": abs(obs)}
 
 
-def domain_auc(Xa, Xb, seed=0):
-    return dfl_weights(Xa, Xb, seed)[1]
+def domain_auc(Xa, Xb, ga, gb, seed=0):
+    return dfl_weights(Xa, Xb, ga, gb, seed)[1]
 
 
 def p1_auc(frames, states, year):
     f0, f1 = frames[2014], frames[year]
     st0, st1 = f0["ST"].to_numpy(), f1["ST"].to_numpy()
     X0, X1 = design(f0, "harmonised"), design(f1, "harmonised")
+    h0, h1 = household_ids(f0), household_ids(f1)
     res = {}
     for s in states:
-        temporal = domain_auc(X0[st0 == s], X1[st1 == s])
-        geo = [domain_auc(X0[st0 == s], X0[st0 == t]) for t in states if t != s]
+        a = st0 == s
+        temporal = domain_auc(X0[a], X1[st1 == s], h0[a], h1[st1 == s])
+        geo = [domain_auc(X0[a], X0[st0 == t], h0[a], h0[st0 == t]) for t in states if t != s]
         res[str(s)] = {"temporal_auc": temporal, "geographic_auc_median": float(np.median(geo))}
     k = sum(v["temporal_auc"] < v["geographic_auc_median"] for v in res.values())
     return {"by_state": res, "states_with_smaller_temporal_shift": k, "n_states": len(states)}
@@ -162,71 +234,72 @@ def main():
     margins = json.loads((STAGE_A / "margins.json").read_text())
     frames = {y: frame(y) for y in YEARS}
     thr = thresholds(frames)
-    res = {"thresholds": thr}
+    res = {"alpha": ALPHA, "thresholds": thr}
 
-    # 8.2 other interventions
+    # 8.2 other interventions: envelope rule as C3, each with its own 2014-2018 envelope
     band = {}
     for name in ("expgrad_dp_race_s0", "lfr_race_s0"):
         vals = []
         for y in (2014, 2015, 2016, 2017, 2018):
             f = frames[y]; r = rows_for(y, 0, f)
-            vals.append(point(load_pred(name, y, len(f))[r], labels_for(f[r], y, thr)["nominal"],
+            vals.append(point(load_pred(name, y, f)[r], labels_for(f[r], y, thr)["nominal"],
                               f[r].reset_index(drop=True))["dp_race"])
         eps = max(max(abs(v) for v in vals), margins["floor"])
         f = frames[Y_RACE]
-        u = unweighted(load_pred(name, Y_RACE, len(f)), labels_for(f, Y_RACE, thr)["nominal"], f)
-        e = Estimate.from_unweighted(u, household_ids(f))
-        # LFR does not remove DP; its band is [-eps, eps] around 0 as for the other models, per section 8.2
+        e = est_u(load_pred(name, Y_RACE, f), labels_for(f, Y_RACE, thr)["nominal"], f)
         band[name] = three_way(e.values["dp_race"], e.se("dp_race"), eps, ALPHA) | {"dp_2014_2018": vals}
-    # EO post-processing (race at Y_RACE, sex at Y_SEX): |EO| within its own 2014-2018 band (seed means)
     for g, yr in (("race", Y_RACE), ("sex", Y_SEX)):
         f = frames[yr]; yy = labels_for(f, yr, thr)["nominal"]; vals, ses = [], []
         for sd in SEEDS:
-            e = Estimate.from_unweighted(unweighted(load_pred(f"post_eo_{g}_s{sd}", yr, len(f)), yy, f),
-                                         household_ids(f))
+            e = est_u(load_pred(f"post_eo_{g}_s{sd}", yr, f), yy, f)
             vals.append(e.values[f"eo_{g}"]); ses.append(e.se(f"eo_{g}"))
         band[f"post_eo_{g}"] = three_way(float(np.mean(vals)), float(np.mean(ses)),
-                                         margins["unweighted"]["epsilon_eo"][g], ALPHA) | {"year": yr}
+                                         margins["unweighted"]["epsilon_eo"][g], ALPHA) | {
+                                             "year": yr, "per_seed": vals}
     res["8.2_other_interventions"] = band
 
-    # 8.3 label definitions: accuracy and EO of every seed-0 model, every year
+    # 8.3 label definitions: every metric of every seed-0 model, every year
     rows = []
     for y in YEARS:
         f = frames[y]
         for name in ("gbm_s0", "post_dp_race_s0", "post_eo_race_s0", "post_dp_sex_s0", "post_eo_sex_s0",
                      "expgrad_dp_race_s0", "lfr_race_s0"):
-            r = rows_for(y, 0, f); sub = f[r].reset_index(drop=True); pred = load_pred(name, y, len(f))[r]
+            r = rows_for(y, 0, f); sub = f[r].reset_index(drop=True); pred = load_pred(name, y, f)[r]
             for lk, yy in labels_for(sub, y, thr).items():
-                e = Estimate.from_unweighted(unweighted(pred, yy, sub), household_ids(sub))
+                e = est_u(pred, yy, sub)
                 for m in METRICS:
                     rows.append(dict(model=name, year=y, label=lk, metric=m, value=e.values[m], se=e.se(m)))
     pd.DataFrame(rows).to_csv(OUT / "secondary_labels.csv", index=False)
 
-    # 8.4 decomposition and 8.5 P2/P3
+    # 8.4 decomposition and 8.5 P2/P3 (P2 only when the decomposition passes its reliability rule)
     dec = []
     for name, year in (("gbm_s0", Y_RACE), ("gbm_s0", Y_SEX)):
         for lk in ("nominal", "inflation", "base_rate"):
             d = decompose(name, 0, year, frames, thr, lk)
-            d["P2_conditional_larger"] = {m: abs(d["conditional"][m]) > abs(d["composition"][m])
-                                          for m in ("accuracy", "eo_race", "eo_sex")}
+            d["P2_residual_larger"] = ({m: abs(d["residual"][m]) > abs(d["composition"][m])
+                                        for m in ("accuracy", "eo_race", "eo_sex")} if d["reliable"]
+                                       else "suppressed (decomposition unreliable)")
             d["P3"] = {g: p3_prior_shift(d["m2014"], d["m_year"], g) for g in ("race", "sex")}
             dec.append(d)
     res["8.4_decomposition"] = dec
 
-    # 8.6 original-pipeline view (per-year standardisation), seed-0 GBM
-    fz = joblib.load(MODELS / "gbm_s0.joblib")
+    # 8.6 per-year-scaling pipeline: frozen peryear_gbm models vs the primary frozen-scaler gbm (seed means)
     view = {}
     for y in YEARS:
-        f = frames[y]; r = rows_for(y, 0, f)
-        X = design(f, "harmonised")
-        per_year = Scaler(X)
-        Xs = per_year(X)                                    # year-specific standardisation
-        pred = fz.model.predict(Xs[r]).astype(bool)
-        view[y] = point(pred, labels_for(f[r], y, thr)["nominal"], f[r].reset_index(drop=True))
+        f = frames[y]
+        per = {}
+        for fam in ("peryear_gbm", "gbm"):
+            ests = []
+            for sd in SEEDS:
+                r = rows_for(y, sd, f)
+                ests.append(est_u(load_pred(f"{fam}_s{sd}", y, f)[r], labels_for(f[r], y, thr)["nominal"],
+                                  f[r].reset_index(drop=True)))
+            per[fam] = {m: {"value": float(np.mean([e.values[m] for e in ests])),
+                            "se": float(np.mean([e.se(m) for e in ests]))} for m in METRICS}
+        view[str(y)] = per
     res["8.6_per_year_scaling"] = view
 
-    # 8.8 per-state DP-post-processed models: does a constraint certified in one state transfer better over time
-    # (own state, Y_RACE) than across states (other states, 2014)? Descriptive; unweighted point estimates.
+    # 8.8 per-state DP-post-processed models (descriptive; unweighted point estimates)
     f14, ft = frames[2014], frames[Y_RACE]
     st14, stt = f14["ST"].to_numpy(), ft["ST"].to_numpy()
     test14 = state_split(f14, 0)
@@ -234,7 +307,7 @@ def main():
     per_state = {}
     for st in margins["states"]:
         name = f"state{st}_post_dp_race_s0"
-        p14, pt = load_pred(name, 2014, len(f14)), load_pred(name, Y_RACE, len(ft))
+        p14, pt = load_pred(name, 2014, f14), load_pred(name, Y_RACE, ft)
         own = (st14 == st) & test14
         dp_own14 = point(p14[own], y14[own], f14[own].reset_index(drop=True))["dp_race"]
         m_t = stt == st
@@ -247,22 +320,26 @@ def main():
     res["8.8_state_post_processing"] = {"by_state": per_state, "states_where_temporal_transfer_is_better": k,
                                         "n_states": len(per_state)}
 
-    # 8.9 deployment in 2018 instead of 2014: change from the 2018 test split to each later year (seed means)
+    # 8.9 deployment in 2018: seed-mean levels, and changes from the 2018 test split with mean per-seed SEs
     later = [y for y in YEARS if y > 2018]
     dep = {}
     f18 = frames[2018]
-    for fam, metrics in (("y2018_gbm", ("accuracy", "dp_race", "eo_race", "dp_sex", "eo_sex")),
-                         ("y2018_post_dp_race", ("dp_race", "accuracy")), ("y2018_post_dp_sex", ("dp_sex", "accuracy"))):
-        base = []
+    for fam in ("y2018_gbm", "y2018_post_dp_race", "y2018_post_dp_sex"):
+        e18 = []
         for sd in SEEDS:
             r18 = state_split(f18, sd)
-            base.append(point(load_pred(f"{fam}_s{sd}", 2018, len(f18))[r18], labels_for(f18[r18], 2018, thr)["nominal"],
-                              f18[r18].reset_index(drop=True)))
-        dep[fam] = {"2018": {m: float(np.mean([b[m] for b in base])) for m in metrics}}
+            e = est_u(load_pred(f"{fam}_s{sd}", 2018, f18)[r18], labels_for(f18[r18], 2018, thr)["nominal"],
+                      f18[r18].reset_index(drop=True))
+            e18.append(e if SMOKE else inflate(e, split_multiplier("unweighted")))   # 20% split (prereg 7.3)
+        dep[fam] = {"2018": {m: float(np.mean([e.values[m] for e in e18])) for m in METRICS}}
         for y in later:
             f = frames[y]
-            vals = [point(load_pred(f"{fam}_s{sd}", y, len(f)), labels_for(f, y, thr)["nominal"], f) for sd in SEEDS]
-            dep[fam][str(y)] = {m: float(np.mean([v[m] for v in vals])) for m in metrics}
+            ey = [est_u(load_pred(f"{fam}_s{sd}", y, f), labels_for(f, y, thr)["nominal"], f) for sd in SEEDS]
+            ch = [change(a_, b_) for a_, b_ in zip(ey, e18)]
+            dep[fam][str(y)] = {m: {"level": float(np.mean([e.values[m] for e in ey])),
+                                    "change_from_2018": float(np.mean([c[0][m] for c in ch])),
+                                    "se": float(np.mean([np.sqrt(c[1][k, k]) for c in ch]))}
+                                for k, m in enumerate(METRICS)}
     res["8.9_deployment_2018"] = dep
 
     if not a.skip_p1:
@@ -270,8 +347,8 @@ def main():
     (OUT / "secondary.json").write_text(json.dumps(res, indent=1, default=float))
     print(json.dumps({"thresholds": thr["inflation"], "base_rate_thr": thr["base_rate"],
                       "8.2": {k: v["decision"] for k, v in band.items()},
-                      "dp_checks": [(d["model"], d["year"], d["label"], d["dp_check"]) for d in dec]},
-                     indent=1, default=float))
+                      "decomposition": [(d["model"], d["year"], d["label"], d["reliable"], d["dp_check"])
+                                        for d in dec]}, indent=1, default=float))
 
 
 if __name__ == "__main__":

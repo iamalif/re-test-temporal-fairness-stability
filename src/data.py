@@ -6,7 +6,8 @@ applies the ACSIncome filters of Ding et al. (2021, App. B.1) and writes data/de
 Design notes
 - Geography follows folktables: the 50 states and Puerto Rico; DC (ST=11) is excluded because folktables'
   state list omits it. The US-wide csv_pus.zip holds the 50 states and DC; Puerto Rico is a separate file
-  (csv_ppr.zip), read when present.
+  (csv_ppr.zip). Both archives are required, and the built year must contain exactly these 51 geographies
+  (QA 1, #8): a missing file or geography is an error, never a silent change of population.
 - Column names are upper-cased (2014-2016 files use lower-case replicate-weight names); STATE (2023 onward)
   is renamed to ST. Every required column is checked on reading.
 - No recoding happens here. Harmonisation of codes across years is a separate, documented step.
@@ -17,6 +18,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import zipfile
 from pathlib import Path
 
@@ -37,6 +39,9 @@ WANTED = set(FEATURES + EXTRA + REPWEIGHTS) | {"STATE"}   # ST is named STATE fr
 REQUIRED = set(FEATURES + REPWEIGHTS + ["SERIALNO", "SPORDER", "ST", "PINCP", "ADJINC", "PWGTP"]) - {"RELP"}
 STRING_COLS = {"SERIALNO"}
 EXCLUDED_ST = {11}  # District of Columbia: not in folktables' state list
+GEOGRAPHIES = {1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+               32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 44, 45, 46, 47, 48, 49, 50, 51, 53, 54, 55, 56, 72}
+assert len(GEOGRAPHIES) == 51          # folktables' 50 states + Puerto Rico
 
 
 def check_year_allowed(year: int) -> None:
@@ -76,15 +81,13 @@ def _read_member_filtered(zf: zipfile.ZipFile, name: str, counts: dict) -> pd.Da
 
 
 def read_year_universe(year: int) -> tuple[pd.DataFrame, dict]:
-    """ACSIncome universe for the 50 states and (if present) Puerto Rico; DC excluded."""
+    """ACSIncome universe for the 50 states and Puerto Rico; DC excluded. Both archives are required."""
     check_year_allowed(year)
     parts, members, counts = [], [], {}
     for fname in ("csv_pus.zip", "csv_ppr.zip"):
         zpath = RAW / str(year) / fname
         if not zpath.exists():
-            if fname == "csv_ppr.zip":
-                continue
-            raise FileNotFoundError(zpath)
+            raise FileNotFoundError(f"{zpath} is required (registered population: 50 states + Puerto Rico)")
         with zipfile.ZipFile(zpath) as zf:
             for m in sorted(n for n in zf.namelist() if n.lower().endswith(".csv")):
                 parts.append(_read_member_filtered(zf, m, counts))
@@ -106,11 +109,22 @@ def acsincome_universe(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     return d.reset_index(drop=True), steps
 
 
+def _sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 22), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def build_year(year: int, overwrite: bool = False) -> Path:
     DERIVED.mkdir(parents=True, exist_ok=True)
     out = DERIVED / f"acsincome_{year}.parquet"
     meta_path = DERIVED / f"acsincome_{year}.json"
     if out.exists() and meta_path.exists() and not overwrite:
+        meta = json.loads(meta_path.read_text())
+        if meta.get("sha256_parquet") != _sha256(out) or set(map(int, meta["rows_by_ST"])) != GEOGRAPHIES:
+            raise RuntimeError(f"{out} does not match its metadata or geography set; rebuild with --overwrite")
         return out
     uni, info = read_year_universe(year)
     keep = [c for c in FEATURES + EXTRA + REPWEIGHTS if c in uni.columns]
@@ -118,17 +132,25 @@ def build_year(year: int, overwrite: bool = False) -> Path:
     for c in keep:
         if c not in STRING_COLS and c not in REPWEIGHTS:
             uni[c] = pd.to_numeric(uni[c], errors="raise").astype("float64")
-    uni.to_parquet(out, index=False)
     by_st = uni.groupby("ST").size()
+    got = set(int(k) for k in by_st.index)
+    if got != GEOGRAPHIES:
+        raise RuntimeError(f"{year}: geography set differs: missing {sorted(GEOGRAPHIES - got)}, "
+                           f"unexpected {sorted(got - GEOGRAPHIES)}")
+    tmp = out.with_suffix(".parquet.tmp")
+    uni.to_parquet(tmp, index=False)
+    os.replace(tmp, out)
     info.update({
         "n_universe": int(len(uni)),
         "n_geographies": int(by_st.size),
         "rows_by_ST": {str(int(k)): int(v) for k, v in by_st.items()},
         "columns": keep,
         "missing_counts": {c: int(uni[c].isna().sum()) for c in keep if c not in REPWEIGHTS},
-        "sha256_parquet": hashlib.sha256(out.read_bytes()).hexdigest(),
+        "sha256_parquet": _sha256(out),
     })
-    meta_path.write_text(json.dumps(info, indent=2))
+    tmpm = meta_path.with_suffix(".json.tmp")
+    tmpm.write_text(json.dumps(info, indent=2))
+    os.replace(tmpm, meta_path)
     return out
 
 

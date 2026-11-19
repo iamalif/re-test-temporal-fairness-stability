@@ -7,12 +7,17 @@ Every reconstruction number quoted in the paper comes from the macros written he
 import json
 from pathlib import Path
 
+import sys
+
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+from reconstruct import load_runs  # noqa: E402
+
 REC = ROOT / "results" / "reconstruction"
 YEARS = [2014, 2015, 2016, 2017, 2018]
 INK, MUTED, GRID = "#1f1f1e", "#6b6a64", "#e4e3de"
@@ -22,8 +27,7 @@ LAB = {"per_year": "Ours, each year standardised separately", "common": "Ours, f
 
 
 def runs():
-    rs = [json.loads(l) for l in (REC / "runs.jsonl").read_text().splitlines() if l.strip()]
-    return [r for r in rs if r["status"] == "ok"]
+    return load_runs("all")                 # exact plan inventory enforced
 
 
 def series(rs, method, constraint, scaling, trees, metric, seeds=None):
@@ -33,6 +37,9 @@ def series(rs, method, constraint, scaling, trees, metric, seeds=None):
         if (j["method"], j["constraint"], j["scaling"], j["n_trees"]) == (method, constraint, scaling, trees) \
                 and (seeds is None or j["seed"] in seeds):
             out.append([r["eval"][str(y)][metric] for y in YEARS])
+    want = len(seeds) if seeds is not None else (5 if method == "gbm" and trees in (5, 50, 100, 200) else 1)
+    if len(out) != want:
+        raise RuntimeError(f"series {method}/{constraint}/{scaling}/{trees}/{metric}: {len(out)} runs, expected {want}")
     return np.array(out)
 
 
@@ -90,8 +97,15 @@ def macros(rs, f4, f13):
     put("PubAccDecline", pa[0] - pa[-1]); put("PubAccFirst", pa[0]); put("PubAccLast", pa[-1])
     put("PubDPMin", min(f4["GBM"]["dp"])); put("PubDPMax", max(f4["GBM"]["dp"]))
     put("PubEOMin", min(f13["GBM"]["eo"])); put("PubEOMax", max(f13["GBM"]["eo"]))
+    # Preprocessing contrast within the reconstruction (QA 1, #4): paired difference of the two scalings,
+    # expressed relative to the published decline. The share of the published decline that the common-scaler
+    # reconstruction does not recover also contains unexplained reconstruction mismatch; it is not an attribution.
     common = series(rs, "gbm", "none", "common", 100, "accuracy").mean(0)
-    m["ShareDeclinePerYearOnly"] = "{:.0f}\\%".format(100 * (1 - (common[0] - common[-1]) / (pa[0] - pa[-1])))
+    peryear = series(rs, "gbm", "none", "per_year", 100, "accuracy").mean(0)
+    dec_c, dec_p, dec_pub = common[0] - common[-1], peryear[0] - peryear[-1], pa[0] - pa[-1]
+    put("PreprocContrastAcc", dec_p - dec_c, "{:.4f}")
+    m["PreprocContrastShare"] = "{:.1f}\\%".format(100 * (dec_p - dec_c) / dec_pub)
+    m["ShareNotRecoveredCommon"] = "{:.1f}\\%".format(100 * (1 - dec_c / dec_pub))
     for key, name, method, cons in (("LFR", "GBM w/ LFR", "lfr", "dp"), ("ExpGrad", "GBM w/ ExpGrad (DP)", "expgrad", "dp"),
                                     ("Post", "GBM w/ Postprocessing (DP)", "postprocessing", "dp")):
         for sc, tag in (("per_year", "PerYear"), ("common", "Common")):
@@ -108,10 +122,18 @@ def macros(rs, f4, f13):
     print("\n".join(lines))
 
 
+REQUIRED_SERIES = {"f4": ["GBM", "GBM w/ LFR", "GBM w/ ExpGrad (DP)", "GBM w/ Postprocessing (DP)"],
+                   "f13": ["GBM", "GBM w/ Postprocessing (EO)"]}
+
+
 def main():
     rs = runs()
     f4 = json.loads((REC / "figure4_digitised.json").read_text())["series"]
     f13 = json.loads((REC / "figure13_digitised.json").read_text())["series"]
+    for tag, ref in (("f4", f4), ("f13", f13)):
+        for name in REQUIRED_SERIES[tag]:
+            ok = name in ref and all(len(v) == len(YEARS) for v in ref[name].values())
+            assert ok, f"{tag}: series {name} missing or incomplete"
     figure(rs, f4)
     macros(rs, f4, f13)
 

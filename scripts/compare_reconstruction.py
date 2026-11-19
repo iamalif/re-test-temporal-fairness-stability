@@ -12,6 +12,9 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+from reconstruct import load_runs  # noqa: E402
+
 YEARS = [2014, 2015, 2016, 2017, 2018]
 NAME = {("gbm", "none"): "GBM", ("expgrad", "dp"): "GBM w/ ExpGrad (DP)",
         ("postprocessing", "dp"): "GBM w/ Postprocessing (DP)", ("lfr", "dp"): "GBM w/ LFR",
@@ -22,8 +25,7 @@ def main():
     rec = ROOT / "results" / "reconstruction"
     f4 = json.loads((rec / "figure4_digitised.json").read_text())["series"]
     f13 = json.loads((rec / "figure13_digitised.json").read_text())["series"]
-    runs = [json.loads(l) for l in (rec / "runs.jsonl").read_text().splitlines() if l.strip()]
-    runs = [r for r in runs if r["status"] == "ok"]
+    runs = load_runs("all")                 # exact plan inventory enforced
     rows = []
     for r in runs:
         j = r["job"]

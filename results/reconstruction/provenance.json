@@ -1,0 +1,5 @@
+{
+ "legacy_code_sha256": "68f1c0746fdfdb4e86b1b297d36cc6f32b17921da2ea51b6a88be65d1399ac23",
+ "note": "The 56 runs in runs.jsonl predate the per-run code_sha256 field. They record git 08c7c82 with src/models.py and scripts/reconstruct.py then uncommitted; both were committed unchanged in 7485937 together with runs.jsonl, and src/models.py and src/common.py have not changed since (git diff 7485937 HEAD -- src/models.py src/common.py is empty). legacy_code_sha256 is the SHA-256 of src/models.py + src/common.py at that state.",
+ "verified": "2026-11-19"
+}

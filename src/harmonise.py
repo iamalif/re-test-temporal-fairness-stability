@@ -5,8 +5,9 @@ occupation crosswalk; none is tuned on outcome data. Breaks handled:
 
 - OCCP (2018): 2010-based codes in 2014-2017, 2018-based codes from 2018 (identical code lists 2018-2024).
   Harmonised to the major occupation group given by the three-letter prefix of each code's label in that year's
-  own dictionary (e.g. "MGR-", "ENG-", "PRD-"): 25 groups plus "UNE" for code 9920. The prefix scheme exists in both vintages. Codes that the official
-  crosswalk moves across major groups are counted in the harmonisation report.
+  own dictionary (e.g. "MGR-", "ENG-", "PRD-"): 25 groups plus "UNE" for code 9920. The prefix scheme exists in
+  both vintages. The three 2010 codes that the official crosswalk moves whole into another major group take that
+  group in every year (DESTINATION_GROUP); provenance of every mapping: docs/harmonisation_provenance.md.
 - RELP -> RELSHIPP (2019): spouse and unmarried partner split by sex; "roomer or boarder" dropped.
   Harmonised to RELP's categories, with roomer/boarder (11), housemate/roommate (12) and other nonrelative (15)
   merged into one non-relative category in every year, because the 2019 form no longer separates them.
@@ -58,11 +59,13 @@ def dictionary(year: int) -> dict[str, dict[str, str]]:
 # Labels without a prefix: 1555 and 8000 lack it in the 2018 dictionary only (the 2019 dictionary gives ENG-
 # and PRD-); 9920 ("unemployed, last worked 5+ years ago or never") has none in any year.
 PREFIX_FIXES = {1555: "ENG", 8000: "PRD", 9920: "UNE"}
-# 2010 codes that the official crosswalk moves, whole, into a 2018 code of another major group are assigned
-# the destination group in every year (one-to-one moves only; split codes keep their own group).
-# Source: "Occ Code Changes" sheet of the 2018 Census occupation crosswalk (scripts/harmonisation_report.py).
-DESTINATION_GROUP = {2160: "ENT", 2900: "OFF", 3540: "SCI", 4320: "TRN", 4610: "HLS", 5620: "TRN",
-                     5800: "CMM", 9520: "EXT"}
+# 2010 codes that the official crosswalk moves WHOLE (every listed 2018 destination in one major group) into a group
+# other than their own are assigned that destination group in every year. Codes split across several 2018 codes
+# keep their own group when one of the destinations is in it, which is the case for every split code here.
+# Derived mechanically from the "Occ Code Changes" sheet of the 2018 Census occupation crosswalk by
+# scripts/harmonisation_report.py (which re-derives and checks this dict). Decision log D023: an earlier version
+# also moved five split codes (2160, 2900, 3540, 4320, 9520) to a minority destination group; corrected.
+DESTINATION_GROUP = {4610: "HLS", 5620: "TRN", 5800: "CMM"}
 
 
 @lru_cache(maxsize=None)

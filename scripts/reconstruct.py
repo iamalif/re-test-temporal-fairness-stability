@@ -7,7 +7,11 @@ results/reconstruction/runs.jsonl together with the job's settings, timing and p
 Usage:
   uv run python scripts/reconstruct.py --plan core --jobs 5
   uv run python scripts/reconstruct.py --plan all --jobs 6     (core + literal + gbm_seeds)
-Plans are defined in PLANS below. Re-running skips jobs whose key already appears in runs.jsonl.
+Plans are defined in plans() below. Re-running skips a job only if a successful run with the same key AND the same
+code fingerprint (hash of src/models.py and src/common.py) is already in runs.jsonl. Runs recorded before the
+fingerprint field existed take the fingerprint stored in results/reconstruction/provenance.json.
+load_runs() is the only way the downstream scripts read runs: it enforces the exact plan inventory (every job
+present once, status ok, fingerprint current) and fails otherwise. A job that errors makes main() exit non-zero.
 """
 from __future__ import annotations
 
@@ -29,6 +33,53 @@ EVAL_YEARS = (2014, 2015, 2016, 2017, 2018)
 OUT = ROOT / "results" / "reconstruction" / "runs.jsonl"
 if __import__("os").environ.get("RT_SMOKE_ROWS"):
     OUT = ROOT / "results" / "smoke" / "runs_smoke.jsonl"
+
+
+PROVENANCE = OUT.parent / "provenance.json"
+
+
+def code_fingerprint() -> str:
+    import hashlib
+    h = hashlib.sha256()
+    for f in ("models.py", "common.py"):
+        h.update((ROOT / "src" / f).read_bytes())
+    return h.hexdigest()
+
+
+def _fingerprint_of(r: dict):
+    if "code_sha256" in r:
+        return r["code_sha256"]
+    if PROVENANCE.exists():
+        return json.loads(PROVENANCE.read_text()).get("legacy_code_sha256")
+    return None
+
+
+def _read_runs() -> list:
+    rs = []
+    if OUT.exists():
+        for line in OUT.read_text().splitlines():
+            try:
+                rs.append(json.loads(line))
+            except json.JSONDecodeError:
+                print("skipping an incomplete line in runs.jsonl (interrupted write)", flush=True)
+    return rs
+
+
+def load_runs(plan: str = "all") -> list:
+    """Successful runs of a plan, with the exact inventory enforced (QA 1, #5, #6, #18)."""
+    current = code_fingerprint()
+    ok = [r for r in _read_runs() if r.get("status") == "ok" and _fingerprint_of(r) == current]
+    by_key = {}
+    for r in ok:
+        if r["key"] in by_key:
+            raise RuntimeError(f"duplicate successful run: {r['key']}")
+        by_key[r["key"]] = r
+    want = [job_key(j) for j in plans()[plan]]
+    missing = [k for k in want if k not in by_key]
+    if missing:
+        raise RuntimeError(f"{len(missing)} of {len(want)} runs of plan '{plan}' missing or made with other code, "
+                           f"e.g. {missing[:3]}")
+    return [by_key[k] for k in want]
 
 
 def job_key(j: dict) -> str:
@@ -88,7 +139,8 @@ def run_job(job: dict) -> dict:
                 Xa, ya, ra, te = year_arrays(ey, job["seed"])
                 Xe, ye, re_ = scaler.apply(Xa)[te], ya[te], ra[te]
             evals[str(ey)] = evaluate(m.predict(Xe, re_), ye, re_)
-        return {"job": job, "key": job_key(job), "status": "ok", "fit_seconds": round(fit_s, 1),
+        return {"job": job, "key": job_key(job), "status": "ok", "code_sha256": code_fingerprint(),
+                "fit_seconds": round(fit_s, 1),
                 "total_seconds": round(time.time() - t0, 1), "eval": evals, "versions": versions(),
                 "finished": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
     except Exception as e:
@@ -102,26 +154,20 @@ def main():
     ap.add_argument("--jobs", type=int, default=5)
     a = ap.parse_args()
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    done = set()
-    if OUT.exists():
-        for line in OUT.read_text().splitlines():
-            try:
-                r = json.loads(line)
-            except json.JSONDecodeError:
-                print("skipping an incomplete line in runs.jsonl (interrupted write)", flush=True)
-                continue
-            if r.get("status") == "ok":
-                done.add(r["key"])
+    current = code_fingerprint()
+    done = {r["key"] for r in _read_runs() if r.get("status") == "ok" and _fingerprint_of(r) == current}
     todo = [j for j in plans()[a.plan] if job_key(j) not in done]
     # longest jobs first so the pool stays busy
     cost = {"lfr": 4, "expgrad": 3, "postprocessing": 1, "gbm": 1}
     todo.sort(key=lambda j: -cost[j["method"]] * j["n_trees"])
     print(f"{len(todo)} jobs to run ({len(done)} already done)", flush=True)
     from concurrent.futures import ProcessPoolExecutor, as_completed
+    failed = 0
     with ProcessPoolExecutor(max_workers=a.jobs) as ex:
         futs = {ex.submit(run_job, j): j for j in todo}
         for f in as_completed(futs):
             r = f.result()
+            failed += r["status"] != "ok"
             with open(OUT, "a") as fh:
                 fh.write(json.dumps(r) + "\n")
             j = r["job"]
@@ -133,6 +179,9 @@ def main():
             else:
                 msg += "  " + r["error"][:200]
             print(msg, flush=True)
+    if failed:
+        sys.exit(1)
+    load_runs(a.plan)                       # exact inventory of the plan, or an error
 
 
 if __name__ == "__main__":

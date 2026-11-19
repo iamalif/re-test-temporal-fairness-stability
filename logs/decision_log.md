@@ -306,3 +306,51 @@ Format: ID, date (Europe/Stockholm), decision or event, reason, who.
   (C5, C6). The fitted EO-post-processed models (race, sex; 5 seeds) are now assessed like 8.2: |EO| at 2019 (race)
   and 2024 (sex) within epsilon_EO, the largest |EO| of that model in 2014-2018 (floor 0.01). Secondary, so the
   confirmatory family and alpha are unchanged. stage_a_analysis computes epsilon_eo; smoke-tested.
+
+## D023 - 2026-11-19 - Independent QA 1: dispositions and changes (all before archiving; no 2019+ data opened)
+Report: docs/qa_independent_1_report.md; point-by-point disposition: docs/qa_independent_1_disposition.md.
+- Confirmatory family reduced to C1, C2, C3, C4, C6, C7 (Bonferroni alpha = 0.05/6).
+  C8 (20-state sign test) is descriptive: the state comparisons share observations and estimated references, so the
+  exact binomial test lacks a valid null (QA #1). C5 (EO race) is secondary: at the anticipated SE (0.0033
+  unweighted, 0.0043 weighted) "holds" has probability 0.31 / 0.00 even with zero true change
+  (results/validation/inference_validation.json), so it would spend alpha on a test that cannot conclude stability.
+- C7 interval replaced. The Monte Carlo percentile interval under-covered in simulation (minimum coverage 0.93
+  against a 0.992 target near zero changes). New: simultaneous Bonferroni box for the two changes, exact range of
+  D over the box; G treated as fixed calibration constants with floor 0.005. Simulated coverage >= 0.995 at the
+  anticipated covariance and under stress settings (SE x3, rho = +/-0.9); max P(wrong direction) 0.004.
+- C3/C4 renamed "retention of the historical disparity envelope"; estimand: seed-average signed gap of the five
+  frozen post-processed models; per-seed values reported as diagnostics.
+- Randomised predictors (ThresholdOptimizer, ExpGrad) evaluated through expected predictions (positive-class
+  probability), i.e. the expected metrics of the randomised policy; removes the dependence on row order and on
+  reusing one random stream across years (QA #15). Metrics are linear in the prediction, so estimators carry over.
+- BUG FOUND IN OUR HARMONISATION (while answering QA #13): DESTINATION_GROUP moved eight 2010 occupation codes to
+  their crosswalk destination group, but five of them (2160, 2900, 3540, 4320, 9520) are SPLIT codes whose own group
+  is among their destinations; the stated rule (whole moves only) gives just 4610 HLS, 5620 TRN, 5800 CMM.
+  0.33% of 2014 rows were affected. The corrected mapping reduces the 2018 discontinuities of the affected groups
+  (e.g. LGL +0.0011 -> 0.0000, MED +0.0012 -> +0.0001, OFF -0.0015 -> -0.0008). harmonisation_report.py now
+  re-derives the set from the crosswalk and fails if harmonise.py differs.
+  Consequence: every model trained on harmonised 2014 features is refitted (incl. ExpGrad); 2018-trained models and
+  rawgbm are unaffected but refitted where the mapping fingerprint differs (deterministic). Models now record a
+  fingerprint of the mapping content; stale models are refitted automatically and old entries are kept in
+  results/models_manifest_superseded.json.
+- New frozen family peryear_gbm_s0-4 (QA #12): each year standardised with its own full-population scaler, the
+  training scaler fitted on all 2014 rows as in the reconstruction. Replaces the ad hoc 8.6 variant.
+- Split variance (QA #14): scripts/check_split_variance.py estimates, on 2018 with 200 random 20% splits, whether
+  variance estimates on a test split include the split's own randomness. Pre-specified: variances of every
+  training-year test-split estimate are multiplied by max(1, 1/R) per metric and weighting.
+- Reconstruction attribution corrected (QA #4): the paired preprocessing contrast within the reconstruction is
+  0.0075 accuracy, 29.5% of the published decline; the earlier "35%" was the share NOT recovered by the
+  common-scaler reconstruction and includes unexplained mismatch.
+- Provenance and failure handling (QA #5-#8): model hashes verified on load; predictions carry a provenance record
+  (model hash, data-file hash, row identity, convention) checked before use; atomic writes; exact model inventory
+  (88 models) and 20 states / 380 pairs asserted; failed workers exit non-zero; reconstruction runs carry a code
+  fingerprint and downstream scripts require the full 56-run inventory; Puerto Rico and the 51-geography set are
+  mandatory; downloads go to .part files and are integrity-checked before use; CPI failure separated (exit 3).
+  Tests: scripts/test_integrity.py (all tampering cases detected in smoke mode).
+- Decomposition (QA #11): household-grouped cross-fitting folds; ESS, weight tails, overlap and group-wise balance
+  diagnostics; clipping sensitivity (99.9%, 99%, none); residual named "conditional change plus approximation
+  error"; reliability rule (DP check, max group SMD <= 0.10, clipping shift <= 0.005) gates P2.
+- Outputs (QA #16): margin-sensitivity curves 0.005-0.03 for C1-C6; 8.9 reports changes with SEs; checklist
+  prereg/OUTPUT_CHECKLIST.md enforced by scripts/check_outputs.py.
+- Pending at the time of writing: Stage A rerun on the Mac (refit, predictions, split variance, Stage A analysis,
+  decomposition check, inference validation, integrity tests), then prereg and paper text, then QA round 2.

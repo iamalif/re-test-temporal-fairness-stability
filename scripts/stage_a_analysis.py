@@ -22,9 +22,10 @@ sys.path.insert(0, str(ROOT / "src"))
 import numpy as np
 import pandas as pd
 
-from analysis import METRICS, REP, Estimate, change, household_ids, noise_corrected_abs, unweighted, weighted
+from analysis import (METRICS, REP, Estimate, change, household_ids, inflate, noise_corrected_abs, split_multiplier,
+                      unweighted, weighted)
 from common import label, load_year, state_split
-from pipeline import MANIFEST, SEEDS, SMOKE, load_pred, train_year_of
+from pipeline import MANIFEST, N_STATES, SEEDS, SMOKE, load_pred, train_year_of, verify_inventory
 
 YEARS = (2014, 2015, 2016, 2017, 2018)
 FLOOR = 0.01
@@ -40,16 +41,23 @@ def frame(year):
     return df
 
 
-def estimates(pred, y, df):
-    return (Estimate.from_unweighted(unweighted(pred, y, df), household_ids(df)),
-            Estimate.from_weighted(weighted(pred, y, df), len(y)))
+def estimates(pred, y, df, split=False):
+    """(unweighted, weighted) estimates; split=True for estimates on a 20% test split, whose variances get the
+    pre-specified multipliers of results/validation/split_variance.json (pre-registration 7.3)."""
+    eu = Estimate.from_unweighted(unweighted(pred, y, df), household_ids(df))
+    ew = Estimate.from_weighted(weighted(pred, y, df), len(y))
+    if split and not SMOKE:
+        eu, ew = inflate(eu, split_multiplier("unweighted")), inflate(ew, split_multiplier("weighted"))
+    return eu, ew
 
 
 def main():
+    verify_inventory(YEARS)                 # exact model inventory, hashes and prediction provenance
     OUT.mkdir(parents=True, exist_ok=True)
     manifest = json.loads(MANIFEST.read_text())
     us_models = [n for n in manifest if not n.startswith("state")]   # includes y2018_* (8.9)
     states = sorted({int(n[5:].split("_")[0]) for n in manifest if n.startswith("state")})
+    assert len(states) == N_STATES, f"{len(states)} source states, expected {N_STATES}"
     frames = {y: frame(y) for y in YEARS}
     labels = {y: label(frames[y]) for y in YEARS}
     rows, est = [], {}
@@ -61,9 +69,9 @@ def main():
             if y < ty:                      # models trained on 2018 (8.9) are evaluated forward only
                 continue
             df, yy = frames[y], labels[y]
-            pred = load_pred(name, y, len(df))
+            pred = load_pred(name, y, df)
             keep = test_ty if y == ty else np.ones(len(df), bool)
-            eu, ew = estimates(pred[keep], yy[keep], df[keep].reset_index(drop=True))
+            eu, ew = estimates(pred[keep], yy[keep], df[keep].reset_index(drop=True), split=(y == ty))
             est[(name, y)] = (eu, ew)
             for wt, e in (("unweighted", eu), ("weighted", ew)):
                 for m in METRICS:
@@ -92,6 +100,8 @@ def main():
         for g in ("race", "sex"):
             dp = [abs(np.mean([est[(f"post_dp_{g}_s{s}", y)][wi].values[f"dp_{g}"] for s in SEEDS])) for y in YEARS]
             mg["epsilon_raw"][g] = max(dp)
+            mg.setdefault("post_dp_per_seed_by_year", {})[g] = {
+                str(y): [est[(f"post_dp_{g}_s{s}", y)][wi].values[f"dp_{g}"] for s in SEEDS] for y in YEARS}
             mg["epsilon"][g] = max(max(dp), FLOOR)
         # same rule for the EO-post-processed models (secondary 8.2)
         mg["epsilon_eo"], mg["epsilon_eo_raw"] = {}, {}
@@ -106,9 +116,9 @@ def main():
     test14 = state_split(df14, 0)
     geo_rows, own = [], {}
     for s in states:
-        pred = load_pred(f"state{s}_gbm_s0", 2014, len(df14))
+        pred = load_pred(f"state{s}_gbm_s0", 2014, df14)
         m_own = (st14 == s) & test14
-        own[s] = estimates(pred[m_own], y14[m_own], df14[m_own].reset_index(drop=True))
+        own[s] = estimates(pred[m_own], y14[m_own], df14[m_own].reset_index(drop=True), split=True)
         for t in states:
             if t == s:
                 continue
@@ -121,6 +131,8 @@ def main():
                     geo_rows.append(dict(source=s, target=t, weighting=wt, metric=m, delta=d[m], se=se,
                                          abs_corrected=noise_corrected_abs(d[m], se)))
     geo = pd.DataFrame(geo_rows)
+    counts = geo.groupby(["weighting", "metric"]).size()
+    assert (counts == len(states) * (len(states) - 1)).all() and len(counts) == 2 * len(METRICS), counts
     geo.to_csv(OUT / "geographic_pairs_2014.csv", index=False)
     for wt in ("unweighted", "weighted"):
         g = geo[geo.weighting == wt].groupby("metric")["abs_corrected"].median()
