@@ -7,6 +7,16 @@
   2017,
   2018
  ],
+ "axis_fit": {
+  "94.4": {
+   "ticks": 6,
+   "max_residual": 0.0
+  },
+  "333.8": {
+   "ticks": 8,
+   "max_residual": 0.0
+  }
+ },
  "series": {
   "GBM": {
    "accuracy": [

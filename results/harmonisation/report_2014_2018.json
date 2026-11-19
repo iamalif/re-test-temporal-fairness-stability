@@ -1,0 +1,130 @@
+{
+ "years": {
+  "2014": {
+   "rows": 1587856,
+   "relp_rows_merged": 36091,
+   "pobp_rows_merged": {
+    "208": 58,
+    "456": 0,
+    "463": 183
+   },
+   "share_rows_in_cross_group_2010_codes": 0.03525760522364749
+  },
+  "2015": {
+   "rows": 1603542,
+   "relp_rows_merged": 37877,
+   "pobp_rows_merged": {
+    "208": 58,
+    "456": 0,
+    "463": 187
+   },
+   "share_rows_in_cross_group_2010_codes": 0.03642561279966474
+  },
+  "2016": {
+   "rows": 1618060,
+   "relp_rows_merged": 39348,
+   "pobp_rows_merged": {
+    "208": 65,
+    "456": 0,
+    "463": 184
+   },
+   "share_rows_in_cross_group_2010_codes": 0.03713891944674487
+  },
+  "2017": {
+   "rows": 1642973,
+   "relp_rows_merged": 40181,
+   "pobp_rows_merged": {
+    "208": 0,
+    "456": 62,
+    "463": 33
+   },
+   "share_rows_in_cross_group_2010_codes": 0.03797749567400073
+  },
+  "2018": {
+   "rows": 1664500,
+   "relp_rows_merged": 40227,
+   "pobp_rows_merged": {
+    "208": 0,
+    "456": 59,
+    "463": 54
+   },
+   "share_rows_in_cross_group_2010_codes": null
+  }
+ },
+ "occp_crosswalk": {
+  "edges": 189,
+  "cross_group_edges": [
+   [
+    430,
+    705,
+    "MGR",
+    "BUS"
+   ],
+   [
+    1107,
+    705,
+    "CMM",
+    "BUS"
+   ],
+   [
+    2160,
+    2170,
+    "ENT",
+    "LGL"
+   ],
+   [
+    2160,
+    2180,
+    "ENT",
+    "LGL"
+   ],
+   [
+    2900,
+    2905,
+    "OFF",
+    "ENT"
+   ],
+   [
+    3540,
+    3550,
+    "SCI",
+    "MED"
+   ],
+   [
+    4320,
+    4330,
+    "TRN",
+    "PRS"
+   ],
+   [
+    9520,
+    9570,
+    "EXT",
+    "TRN"
+   ],
+   [
+    9520,
+    9760,
+    "EXT",
+    "TRN"
+   ],
+   [
+    9820,
+    1555,
+    "MIL",
+    "ENG"
+   ]
+  ],
+  "edges_with_code_not_in_pums_dictionaries": 22
+ },
+ "largest_2018_jumps": {
+  "MGR": 0.00509,
+  "BUS": 0.00469,
+  "OFF": 0.00154,
+  "MED": 0.00116,
+  "LGL": 0.00108,
+  "TRN": 0.00092,
+  "ENT": 0.00082,
+  "PRS": 0.0008
+ }
+}

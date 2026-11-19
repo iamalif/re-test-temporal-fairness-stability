@@ -157,3 +157,56 @@ Format: ID, date (Europe/Stockholm), decision or event, reason, who.
   which shifts a 2014 tree model's inputs in later years. If confirmed, part of the published accuracy decline is a
   preprocessing effect, which bears directly on "fairness is more stable than accuracy". To be checked: seeds, Puerto
   Rico, other tree counts, the three interventions, and Figure 13 (EO). Report neutrally as a reproduction finding.
+
+## D013 - 2026-11-19 - Reconstruction run set up (2014-2018 only)
+- Puerto Rico files added; ACSIncome universe now 2014 1,587,856 ... 2018 1,664,500 rows, matching the earlier sandbox
+  build exactly (50 states + PR, no DC).
+- Figure 13 (EO, arXiv v3 p. 47) digitised with the same method. GBM EO 2014-2018 = .175 .209 .182 .190 .201;
+  ExpGrad (EO) .015 .046 .017 .038 .058; Postprocessing (EO) -.008 .030 .001 .007 .019.
+  The digitiser now reads tick labels and legend order from the page itself (axis fits exact at the ticks).
+- src/models.py fixes the open implementation choices (see its docstring); scripts/reconstruct.py runs
+  56 jobs (core interventions at 100 trees, literal 5-tree settings, GBM over 5 seeds x 4 tree counts, each under
+  per-year and common scaling). Smoke test on 20,000-row subsamples passed for every method (results/smoke/).
+
+## D014 - 2026-11-19 - Feature harmonisation (documentation only; distributions checked on 2014-2018)
+- Dictionaries: COW, SCHL, MAR, SEX, WKHP, AGEP codes identical in the 2014-2018, 2019 and 2024 dictionaries.
+  RELP replaced by RELSHIPP in 2019. POBP: 208 Cyprus (to 2016), 456 Tunisia and 463 South Sudan (absent 2024).
+- OCCP: every OCCP code in the 2014-2017 data is in the 2017 dictionary (478 codes; 2010-based); 2018 data use
+  529 codes, 151 not in the 2017 dictionary and 100 2017 codes gone (matches the brief).
+  The official crosswalk sheets list full Census codes, several of which PUMS aggregates, so a fine-grained
+  one-to-one PUMS crosswalk is not available from documentation alone.
+- Decision: harmonised occupation = major group from the label prefix of each year's own dictionary (25 groups),
+  with (a) prefixes supplied for 1555 and 8000 (missing in the 2018 dictionary only; 2019 gives ENG/PRD) and
+  9920 (unemployed, own group), and (b) the 8 one-to-one cross-group moves in the crosswalk assigned their 2018
+  group in 2010-coded years. Residual 2018 jump against the 2014-2017 trend: at most 0.5 pp of rows per group
+  (MGR -0.51, BUS +0.47 from the split of 2010 code 0430). Reported as a known residual artefact.
+- RELP_H: roomer/boarder (11), housemate/roommate (12) and other nonrelative (15) merged in every year
+  (2.3-2.4% of rows in 2014-2018); RELSHIPP mapped to RELP categories (spouse and partner codes merged across sex).
+- POBP_H: 208 -> 169, 456 -> 464, 463 -> 469 in every year (58-187 rows per year).
+- Open: confirm POBP collapses against the Census "variable changes" notes before archiving.
+
+## D015 - 2026-11-19 - Reconstruction results (56 runs, 2014-2018 only; results/reconstruction/comparison.csv)
+- Literal App. C GBM (5 trees) is far from the paper: accuracy about 0.11 below Figure 4 in every year, DP about 0.13 below.
+  It was not what produced the figures.
+- GBM, exponential loss, depth 5, 100 trees, each year standardised with its own scaler ("per_year"):
+  accuracy within 0.0024 of Figure 4 in every year (mean abs. dev. 0.0012, SD over 5 seeds 0.0003);
+  2014-2018 decline 0.0240 vs published 0.0254. With one common (frozen) scaler the decline is 0.0165 (5-seed mean),
+  i.e. about a third of the published decline is reproduced only under per-year standardisation.
+  DP 0.152-0.158 vs published 0.163-0.165 (about 0.01 lower), flat in both: the DP-stability pattern reproduces.
+- EO (Figure 13): ours 0.156-0.167, flat; published 0.175-0.209 with a year-to-year zig-zag (2015 and 2018 high) that
+  also appears in the published ExpGrad (EO) and Postprocessing (EO) series. Not reproduced by any variant; seed SD of
+  the 2014-2018 change is about 0.007. Reported as an unexplained discrepancy.
+- LFR: accuracy within 0.004 and DP within 0.006 of Figure 4 in every year (both scalings).
+- ExpGrad (DP): accuracy within 0.004 (common) / 0.004 (per_year) of Figure 4; DP 0.004-0.015 vs 0.013-0.022.
+- Postprocessing (fairlearn ThresholdOptimizer, all race groups): DP about 0 as published, but accuracy 0.015 (DP) and
+  0.04 (EO) higher than published. The published postprocessing costs more accuracy; the EO version may have enforced
+  equalized odds (AIF360's Hardt et al. implementation is equalized odds). Underspecified in the paper.
+- Run cost: ExpGrad at 100 trees took about 7.5 h per fit with 6 jobs sharing the CPU; LFR about 34 min.
+  Fitted models were not saved; the confirmatory runner must persist fitted models.
+- Decisions for the pre-registration (to be finalised there):
+  (1) base model: exponential loss, depth 5, 100 trees (reconstruction rule: tree count in {5,50,100,200} with the
+      smallest mean absolute accuracy deviation from Figure 4 under the variant that best reproduces it);
+  (2) primary pipeline: a frozen preprocessing (common scaler fitted on the 2014 training split), because a deployed
+      model applies its training-time preprocessing; the per-year variant is reported as the reconstruction of the
+      original pipeline;
+  (3) the postprocessing and EO discrepancies are reported neutrally as reproduction findings.
