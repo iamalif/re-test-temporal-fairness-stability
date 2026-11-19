@@ -82,3 +82,44 @@ Format: ID, date (Europe/Stockholm), decision or event, reason, who.
 - Consequence noted: plan, decision log and prior-work notes are visible before the pre-registration is archived.
   For double-blind review, the submission will link an anonymised mirror, and the repository name and title must not
   appear in the manuscript.
+
+## D008 - 2026-11-19 - Admin checks
+- dap-alif copy deleted (researcher). uv 0.13.9 installed (Homebrew).
+- folktables issue #51 (open, Feb 2025): POBP value "456" appears in data but not in the data dictionary consulted;
+  maintainer: schemas differ between years, check the matching dictionary year. -> Harmonisation tables are built
+  per survey year from that year's dictionary; unknown codes are counted and reported, never silently mapped.
+- TMLR editorial policies (fetched 19 Nov 2026): yearly per-author quota, generalized harmonic rule, N_1 = 2 (sole author),
+  doubled for reviewers/AEs (N_1 = 4); desk rejects spend budget; a rejected paper resubmits as a new submission.
+  Reproducibility studies are in scope; a Reproducibility Certification exists for papers whose primary purpose is reproduction.
+  -> Kaggle paper plus a possible resubmission plus this paper can exceed 2 in one year. Mitigation: researcher volunteers
+  as a TMLR reviewer; avoid any desk-reject risk (template, anonymisation, claims statement).
+- Ethics: independent research, no university involvement. Secondary analysis of public, de-identified, CC0 microdata;
+  no interaction with people. The paper states this; it does not claim any institutional endorsement.
+
+## D009 - 2026-11-19 - Google Scholar citing-article check (researcher's screenshots, first 2-3 pages per term)
+- Anchor "Cited by", Since 2026, search within citing articles: temporal (~58 results), drift (~62), 2021 (~245), 2024 (~232),
+  geographic (~40). First 2-3 pages per term inspected.
+- None re-runs Ding et al. Section 4.1 on 2019+ ACS, and none compares temporal and geographic fairness stability on one scale.
+- Read in full before archiving (design only; flag any 2019+ ACS results):
+  - Lammers, Defrance et al., "Fairness in the Flow: An Overview and Drift-Aware Evaluation of Fair Classifiers for Drifting
+    Data Streams" (EWAF 2026).
+  - Wang, Chen, Shen, "DriftFair: Anytime-Valid Temporal Fairness Monitoring and Shift Attribution..." (World Scientific
+    Research Journal 2026) - claims an additive decomposition of observed fairness drift (talent-promotion data). Relevant to
+    our decomposition novelty claim.
+  - Ismael, "Measuring Model Durability under Progressive Tabular Distribution Shift" (Research Square 2026) - how long a
+    classifier stays useful; relevant to the certificate-expiry framing.
+  - Taturyan, Laclau, Clemencon, "A Comprehensive View of Fairness through Distributional Stability" (arXiv 2609.37081).
+  - Sikder, Johnson, Heintz, "StreamFair: Online Fair Adaptation Under Temporal Intersectional Drift" (AI Transparency Journal 2026).
+  - Huby, Byun, "Label-Noise Decay Confounds Loss-Based Drift Attribution" (TMLR) - caveat for loss-based shift attribution.
+- Citation update: Cai, Namkoong, Yadlowsky, "Diagnosing model performance under distribution shift", Operations Research 2026
+  (the DISDE decomposition planned in brief section 8.5).
+- Side note: an LLM fairness paper (ACL 2026) samples ACSIncome (2024), so 2024 ACS loaders are in informal use.
+- Scholar alert on the anchor's citations: to be created by the researcher.
+
+## D010 - 2026-11-19 - Schedule revised
+- The brief's 4-5 months assumed 8-10 researcher-hours a week of hands-on work. With Claude doing implementation and the
+  researcher reviewing, the binding constraints are: (1) the pre-registration must be complete and independently reviewed
+  before any 2019+ file is opened; (2) compute (estimated 40-80 CPU-hours); (3) TMLR accepts no submissions from
+  30 Nov 2026 to 3 Jan 2027.
+- Target: pre-registration archived in about 1-2 weeks; confirmatory runs, decomposition and paper drafted by late December;
+  submission on or after 4 Jan 2027 when TMLR reopens.
