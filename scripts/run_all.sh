@@ -7,6 +7,8 @@ cd "$(dirname "$0")/.."
 PY="uv run python -W ignore"
 case "${1:-}" in
   stage_a)
+    bash scripts/test_fetch.sh          # download integrity checks on synthetic files
+    $PY scripts/test_analysis.py        # estimator and decision-rule tests on synthetic data
     bash scripts/download_stage1.sh
     bash scripts/download_docs.sh       # exits 3 with instructions if only the CPI file must be fetched by hand
     $PY src/data.py 2014 2015 2016 2017 2018

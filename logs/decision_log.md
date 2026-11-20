@@ -387,3 +387,33 @@ Report: docs/qa_independent_1_report.md; point-by-point disposition: docs/qa_ind
 - Manuscript compiles without undefined references or citations (latexmk, TMLR style).
 - Plan: secondary analyses stated as unweighted; exposure record lists the decomposition balance diagnostics and the
   synthetic-stand-in rehearsal. README status updated.
+
+## D026 - 2026-11-20 - Independent QA round 2: dispositions and changes (before the Stage A rerun)
+Report: docs/qa_independent_round_2_report.md; disposition: docs/qa_independent_round_2_disposition.md.
+- R1 provenance: fit-specification hash per model (job, features, mapping, estimator hyperparameters, training-data
+  hash, split and fitting code as AST hash, library versions), compared on resume together with the model-file hash;
+  prediction-specification hash enforced on every prediction; load_pred checks the sidecar's model hash against the
+  current manifest; preflight inventory checks in every prediction consumer; derived data bound to raw-file hashes
+  and build code (2014-2018 files checked against logs/raw_sha256.txt).
+- R2 person-level row identity (ST, SERIALNO, SPORDER); unique in 2014 and 2018; convention expected-v2.
+- R3 decision: race stays an input of the primary models (fidelity to the original). The plan now states that the
+  sex endpoints include any effect of the 2020 race-measurement change; new frozen no-race models (base and sex DP
+  post-processing, seeds 0-4) and secondary analysis 8.10. Inventory: 98 models.
+- R4 crosswalk derivation: codes with an unresolved destination are never moved (430, 3060, 3730, 9520 listed);
+  the derived set is unchanged.
+- A1 target (b) stated; joint simulation of calibration + baseline + later year with registered acceptance criteria.
+- A2 split-variance calibration over 15 configurations, K = 400, upper 95% bound, maximum multiplier.
+- A3 one estimate builder everywhere (8.3 and 8.6 now get the split multiplier); cross-table agreement checked.
+- A4 balance with category indicators and a noise allowance (0.02 + 3 sqrt(1/ESS + 1/n)); clipping gate for
+  accuracy and both EO gaps. Real 2014 -> 2018 (domain classifier on the 2014 seed-0 test split; clipping effects
+  computed with the previous gbm_s0 predictions, which is allowed historical data): before reweighting the largest
+  values are 0.039-0.046 against limits 0.027-0.039 (all four groups fail); after, 0.010-0.023 (all pass);
+  clipping changes of the accuracy, EO and DP residuals are below 0.0003.
+- A5 download checks take the format from the destination name; XLS by signature; synthetic fixtures.
+- A6 metric-local failure handling; C7 input validation; tests (scripts/test_analysis.py, 12/12 pass).
+- A7 provenance block in every result file; check_outputs re-runs the inventory check and rejects stale files.
+- A8 P(false violated) <= alpha, not alpha/2 (docstring, plan, tests).
+- A9 wording: disposition override, provenance table, manuscript (no certification claim), exposure record,
+  C5 rationale; scripts/verify_archive.py.
+- Rehearsal of the full chain with the final code in the sandbox: Stage A gate passes; Stage B gate passes apart
+  from P1 (skipped for time; P1 run separately on 3 states).

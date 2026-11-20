@@ -37,7 +37,7 @@ def expect_fail(label, fn):
 
 
 def frame(year):
-    df = load_year(year, columns=["ST", "SERIALNO", "PINCP"])
+    df = load_year(year, columns=["ST", "SERIALNO", "SPORDER", "PINCP"])
     return df.sample(n=int(P.SMOKE), random_state=0).reset_index(drop=True)
 
 
@@ -72,6 +72,16 @@ def main():
     P.load_pred(name, 2015, df)
     expect_fail("reordered rows", lambda: P.load_pred(name, 2015, df.iloc[::-1].reset_index(drop=True)))
     expect_fail("fewer rows", lambda: P.load_pred(name, 2015, df.iloc[:-1]))
+    # swap two people of one household (same ST and SERIALNO): must be detected by the person-level key
+    multi = df[df.duplicated(["ST", "SERIALNO"], keep=False)]
+    if len(multi):
+        hh = multi.iloc[0][["ST", "SERIALNO"]]
+        idx = df.index[(df.ST == hh.ST) & (df.SERIALNO == hh.SERIALNO)][:2].tolist()
+        sw = df.copy()
+        sw.iloc[idx[0]], sw.iloc[idx[1]] = df.iloc[idx[1]].copy(), df.iloc[idx[0]].copy()
+        expect_fail("two persons of one household swapped", lambda: P.load_pred(name, 2015, sw))
+    else:
+        results["two persons of one household swapped"] = "NOT TESTED (no multi-person household in sample)"
 
     # 3. truncated prediction file
     arr, meta = P._pred_paths(name, 2016)
@@ -109,8 +119,9 @@ def main():
     results["inventory after restore"] = "passes"
     for k, v in results.items():
         print(f"{k:45s} {v}")
-    bad = [k for k, v in results.items() if "NOT DETECTED" in v]
+    bad = [k for k, v in results.items() if "NOT " in str(v)]
     out = ROOT / "results" / "validation"; out.mkdir(parents=True, exist_ok=True)
+    results["_provenance"] = P.provenance()
     (out / "integrity_tests.json").write_text(json.dumps(results, indent=1))
     sys.exit(1 if bad else 0)
 

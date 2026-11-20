@@ -1,14 +1,19 @@
-"""Does the variance estimator of a test-split estimate include the extra 20% person subsampling? (QA 1, #14)
+"""Empirical calibration of variance estimates on a 20% test split (pre-registration 7.1; QA 1 #14, QA 2 A2).
 
-The training year (2014) is evaluated on a random 20% within-state test split, later years on all rows. For a split
-estimate, total variance = design variance of the full-sample estimate + variance added by the random split.
-Check on 2018, where the frozen 2014 model is evaluated on all rows (so any random 20% split is a valid stand-in):
-  V_full  = variance estimate on all 2018 rows (replicate weights, or household-clustered influence values)
-  S       = variance of the split estimates over K random within-state splits (the split's own contribution)
-  V_split = mean of the variance estimates computed on each split
-  ratio R = V_split / (V_full + S)          (R near 1: the estimator already covers the split)
-Pre-specified use (pre-registration 7.3): the variance of every 2014 test-split estimate in Stage B is multiplied by
-max(1, 1/R) for that metric and weighting. Writes results/validation/split_variance.json.
+The training year is evaluated on a random 20% within-state test split, later years on all rows. For a split
+estimate, total variance = variance of the full-sample estimate + variance added by the random split. On 2018, where
+models trained on 2014 are evaluated on all rows, any random 20% within-state split is a valid stand-in. For each
+configuration c (model, label rule, population) and each metric and weighting:
+  V_full = variance estimate on all rows of the population (replicate weights, or household-clustered influence)
+  S      = variance of the split estimates over K random within-state splits (the split's own contribution)
+  V_split= mean of the variance estimates computed on the splits
+  ratio  = (V_full + S_upper) / V_split, with S_upper the one-sided 95% upper confidence bound of S
+           (chi-square, K - 1 degrees of freedom), so Monte Carlo error makes the adjustment larger, not smaller.
+Pre-specified multiplier for every training-year test-split estimate of a metric and weighting: the largest ratio
+over the configurations, floored at 1. Configurations span the model families (base, DP and EO post-processing,
+ExpGrad, per-year scaling), both label rules, and three per-state populations (largest, middle and smallest of the
+20 states). This is an empirical calibration over representative settings, not a theorem; the per-configuration
+ratios are reported. Writes results/validation/split_variance.json.
 """
 import json
 import sys
@@ -18,49 +23,83 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 import numpy as np
+import pandas as pd
+from scipy import stats
 
-from analysis import METRICS, REP, Estimate, household_ids, unweighted, weighted
+from analysis import METRICS, REP, Estimate, unweighted, weighted
 from common import label, load_year, state_split
-from pipeline import load_pred
+from pipeline import MANIFEST, SMOKE, load_pred, provenance, verify_inventory
 
-K = 200
+K = 400
 SEEDS = range(1000, 1000 + K)
+US_MODELS = ("gbm_s0", "post_dp_race_s0", "post_dp_sex_s0", "post_eo_race_s0", "expgrad_dp_race_s0",
+             "peryear_gbm_s0")
+WT = ("unweighted", "weighted")
 
 
-def est(pred, y, df):
-    return (Estimate.from_unweighted(unweighted(pred, y, df), household_ids(df)),
+def est(pred, y, df, hh):
+    return (Estimate.from_unweighted(unweighted(pred, y, df), hh),
             Estimate.from_weighted(weighted(pred, y, df), len(df)))
 
 
 def main():
-    df = load_year(2018, columns=["PINCP", "RAC1P", "SEX", "ST", "SERIALNO", "PWGTP"] + REP)
-    y = label(df)
-    pred = load_pred("gbm_s0", 2018, df)
-    full = est(pred, y, df)
-    splits = {"unweighted": [], "weighted": []}
+    verify_inventory([2018])
+    df = load_year(2018, columns=["PINCP", "RAC1P", "SEX", "ST", "SERIALNO", "SPORDER", "PWGTP"] + REP)
+    if SMOKE:
+        df = df.sample(n=int(SMOKE), random_state=0).reset_index(drop=True)
+    hh = pd.factorize(df["ST"].astype(int).astype(str) + "_" + df["SERIALNO"].astype(str))[0]
+    states = sorted({int(n[5:].split("_")[0]) for n in json.loads(MANIFEST.read_text()) if n.startswith("state")})
+    counts = df[df.ST.isin(states)].groupby("ST").size().sort_values(ascending=False)
+    pick = [int(counts.index[0]), int(counts.index[len(counts) // 2]), int(counts.index[-1])]
+    configs = [(m, rule, None) for m in US_MODELS for rule in (">", ">=")]
+    configs += [(f"state{s}_gbm_s0", ">", s) for s in pick]
+    preds = {m: load_pred(m, 2018, df) for m in {c[0] for c in configs}}
+    labels = {r: label(df, rule=r) for r in (">", ">=")}
+    st = df["ST"].to_numpy()
+    pops = {c: (np.ones(len(df), bool) if c[2] is None else st == c[2]) for c in configs}
+
+    full = {c: est(preds[c[0]][pops[c]], labels[c[1]][pops[c]], df[pops[c]].reset_index(drop=True), hh[pops[c]])
+            for c in configs}
+    split_vals = {c: {wt: [] for wt in WT} for c in configs}
+    split_vars = {c: {wt: [] for wt in WT} for c in configs}
     for s in SEEDS:
         m = state_split(df, s)
         sub = df[m].reset_index(drop=True)
-        for wt, e in zip(("unweighted", "weighted"), est(pred[m], y[m], sub)):
-            splits[wt].append(e)
-    out = {"K": K, "model": "gbm_s0", "year": 2018}
-    for wi, wt in enumerate(("unweighted", "weighted")):
-        res = {}
-        for k, m in enumerate(METRICS):
-            theta = np.array([e.values[m] for e in splits[wt]])
-            v_split = float(np.mean([e.cov[k, k] for e in splits[wt]]))
-            v_full = float(full[wi].cov[k, k])
-            s_between = float(theta.var(ddof=1))
-            den = v_full + s_between
-            r = v_split / den if den > 0 else 1.0        # degenerate metric (no variation): no adjustment
-            res[m] = {"V_full": v_full, "S_between_splits": s_between, "V_split_mean": v_split, "ratio": r,
-                      "variance_multiplier": max(1.0, 1.0 / r),
-                      "mc_se_of_S": s_between * np.sqrt(2 / (K - 1))}
-        out[wt] = res
-        print(wt, {m: round(v["ratio"], 3) for m, v in res.items()})
+        for c in configs:
+            pm = pops[c][m]
+            e = est(preds[c[0]][m][pm], labels[c[1]][m][pm], sub[pm].reset_index(drop=True), hh[m][pm])
+            for wi, wt in enumerate(WT):
+                split_vals[c][wt].append([e[wi].values[k] for k in METRICS])
+                split_vars[c][wt].append(np.diag(e[wi].cov))
+    chi = stats.chi2.ppf(0.05, K - 1)
+    out = {"K": K, "year": 2018, "states_used": pick, "configurations": {}, "multipliers": {wt: {} for wt in WT},
+           "rule": "max over configurations of (V_full + S_upper95) / V_split, floored at 1",
+           "provenance": provenance()}
+    for c in configs:
+        key = f"{c[0]}|{c[1]}|{'US' if c[2] is None else c[2]}"
+        out["configurations"][key] = {}
+        for wi, wt in enumerate(WT):
+            vals, vars_ = np.array(split_vals[c][wt]), np.array(split_vars[c][wt])
+            res = {}
+            for k, metric in enumerate(METRICS):
+                v_full = float(full[c][wi].cov[k, k])
+                s_b = float(np.nanvar(vals[:, k], ddof=1)) if np.isfinite(vals[:, k]).sum() > 1 else float("nan")
+                s_up = s_b * (K - 1) / chi
+                v_split = float(np.nanmean(vars_[:, k])) if np.isfinite(vars_[:, k]).any() else float("nan")
+                ok = bool(np.isfinite([v_full, s_b, v_split]).all() and v_split > 0)
+                res[metric] = {"V_full": v_full, "S": s_b, "S_upper95": s_up, "V_split": v_split,
+                               "ratio_point": (v_full + s_b) / v_split if ok else None,
+                               "ratio_upper": (v_full + s_up) / v_split if ok else None}
+            out["configurations"][key][wt] = res
+    for wt in WT:
+        for metric in METRICS:
+            r = [out["configurations"][k][wt][metric]["ratio_upper"] for k in out["configurations"]]
+            r = [x for x in r if x is not None]
+            out["multipliers"][wt][metric] = max([1.0] + r)
+        print(wt, {m: round(v, 3) for m, v in out["multipliers"][wt].items()})
     path = ROOT / "results" / "validation"
     path.mkdir(parents=True, exist_ok=True)
-    (path / "split_variance.json").write_text(json.dumps(out, indent=1))
+    (path / ("split_variance.json" if not SMOKE else "smoke_split_variance.json")).write_text(json.dumps(out, indent=1))
 
 
 if __name__ == "__main__":

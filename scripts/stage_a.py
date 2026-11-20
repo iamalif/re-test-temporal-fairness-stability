@@ -4,8 +4,10 @@
   uv run python scripts/stage_a.py predict --jobs 5   # expected predictions for 2014-2018 (original cohort only)
   uv run python scripts/stage_a.py verify             # exact inventory check (models, hashes, predictions)
 
-Both steps are resumable: models already in results/models_manifest.json are skipped if they were fitted with the
-current harmonisation mappings (otherwise refitted; superseded entries go to models_manifest_superseded.json); predictions are recomputed
+Both steps are resumable: a model in results/models_manifest.json is skipped only if its fit specification (job,
+features and mappings, hyperparameters, training-data hash, split and fitting code, library versions) equals the
+registered one and its file matches its hash; otherwise it is refitted (superseded entries are kept in
+models_manifest_superseded.json); predictions are recomputed
 unless their provenance record matches the current model hash, data file and rows. Any failed job makes the
 command exit non-zero. Stage B (after archiving) runs `predict --years 2019 2021 2022 2023 2024`.
 """
@@ -20,7 +22,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from pipeline import (MANIFEST, MODELS, expected_models, fit_job, job_names, manifest_update, model_current,
+from pipeline import (MANIFEST, MODELS, expected_specs, fit_job, job_names, manifest_update, model_current,
                       prediction_years, predict_year, stage_a_jobs, verify_inventory)
 
 ORIGINAL = (2014, 2015, 2016, 2017, 2018)
@@ -53,14 +55,16 @@ def main():
     errors = []
     if a.step == "fit":
         manifest = json.loads(MANIFEST.read_text()) if MANIFEST.exists() else {}
-        done = {n for n, e in manifest.items() if model_current(e)}
+        specs = expected_specs()
+        done = {n for n, e in manifest.items() if model_current(n, e, specs)}
         stale = sorted(set(manifest) - done)
         if stale:                       # keep a record of the superseded entries before they are overwritten
             sup = MANIFEST.with_name("models_manifest_superseded.json")
             old = json.loads(sup.read_text()) if sup.exists() else {}
-            old.update({n: manifest[n] for n in stale})
+            old.update({f"{n}@{manifest[n].get('sha256', '')[:12]}": manifest[n] for n in stale})
             sup.write_text(json.dumps(dict(sorted(old.items())), indent=1))
-            print(f"{len(stale)} models fitted with other harmonisation mappings will be refitted", flush=True)
+            print(f"{len(stale)} models are not current (fit specification or file differs) and will be refitted",
+                  flush=True)
         todo = [j for j in stage_a_jobs() if not all(n in done for n in job_names(j))]
         order = {"expgrad": 0, "lfr": 1, "gbm": 2, "rawgbm": 3, "peryear": 4}
         todo.sort(key=lambda j: (order[j["kind"]], j.get("state") is not None))
@@ -74,14 +78,16 @@ def main():
                     continue
                 manifest_update(entries)
                 print(f"ok  {', '.join(e['name'] for e in entries)}  {secs:.0f}s", flush=True)
-        missing = sorted(set(expected_models()) - set(json.loads(MANIFEST.read_text())))
+        final = json.loads(MANIFEST.read_text())
+        missing = sorted(n for n in specs if n not in final or not model_current(n, final[n], specs))
         if missing:
-            errors.append(f"models still missing: {missing}")
+            errors.append(f"models missing or not current: {missing}")
     elif a.step == "predict":
         manifest = json.loads(MANIFEST.read_text())
-        missing = sorted(set(expected_models()) - set(manifest))
-        if missing or any(not (MODELS / f"{n}.joblib").exists() for n in manifest):
-            raise SystemExit(f"model inventory incomplete (missing: {missing[:5]}); run `fit` first")
+        specs = expected_specs()
+        missing = sorted(n for n in specs if n not in manifest or not model_current(n, manifest[n], specs))
+        if missing or set(manifest) != set(specs):
+            raise SystemExit(f"model inventory incomplete or not current (e.g. {missing[:5]}); run `fit` first")
         with ProcessPoolExecutor(max_workers=a.jobs) as ex:
             futs = [ex.submit(_safe_predict, [n for n in sorted(manifest) if y in prediction_years(n, manifest, [y])], y)
                     for y in a.years]

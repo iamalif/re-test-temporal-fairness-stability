@@ -46,6 +46,9 @@ import pyarrow.parquet as pq
 from common import DERIVED, FEATURES, RESULTS, WHITE, folktables_matrix, label, load_year, state_split
 from harmonise import HARMONISED_FEATURES, harmonise
 
+FEATURE_SETS = {"raw": FEATURES, "harmonised": HARMONISED_FEATURES,
+                "harmonised_norace": [f for f in HARMONISED_FEATURES if f != "RAC1P"]}
+
 MODELS = DERIVED / "models"
 PREDS = DERIVED / "preds"
 MANIFEST = RESULTS / "models_manifest.json"
@@ -69,7 +72,7 @@ def year_frame(year: int) -> pd.DataFrame:
     """One survey year with raw and harmonised features, labels' income, state, sex, race and weight."""
     path = DERIVED / f"acsincome_{year}.parquet"
     names = set(pq.read_schema(path).names)
-    want = FEATURES + ["PINCP", "ST", "PWGTP", "RELSHIPP", "SERIALNO"]
+    want = FEATURES + ["PINCP", "ST", "PWGTP", "RELSHIPP", "SERIALNO", "SPORDER"]
     df = load_year(year, columns=[c for c in want if c in names])
     if SMOKE:
         df = df.sample(n=int(SMOKE), random_state=0).reset_index(drop=True)
@@ -77,7 +80,7 @@ def year_frame(year: int) -> pd.DataFrame:
 
 
 def design(df: pd.DataFrame, features: str) -> np.ndarray:
-    return folktables_matrix(df, HARMONISED_FEATURES if features == "harmonised" else FEATURES)
+    return folktables_matrix(df, FEATURE_SETS[features])
 
 
 def largest_states(n: int = N_STATES) -> list[int]:
@@ -178,6 +181,69 @@ def _post(gbm, X, y, sens, constraint):
 
 # ---------------- jobs ----------------
 
+def _ast_hash(*objs) -> str:
+    """Hash of the code of functions/classes, ignoring comments, docstrings and formatting."""
+    import ast
+    import inspect
+    import textwrap
+    h = hashlib.sha256()
+    for o in objs:
+        tree = ast.parse(textwrap.dedent(inspect.getsource(o)))
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.ClassDef, ast.AsyncFunctionDef)) and node.body and \
+                    isinstance(node.body[0], ast.Expr) and isinstance(getattr(node.body[0], "value", None), ast.Constant) \
+                    and isinstance(node.body[0].value.value, str):
+                node.body = node.body[1:] or [ast.Pass()]
+        h.update(ast.dump(tree, annotate_fields=False).encode())
+    return h.hexdigest()
+
+
+def _versions() -> dict:
+    import aif360
+    import fairlearn
+    import scipy
+    import sklearn
+    return {"numpy": np.__version__, "pandas": pd.__version__, "scipy": scipy.__version__,
+            "sklearn": sklearn.__version__, "fairlearn": fairlearn.__version__, "aif360": aif360.__version__}
+
+
+def fit_spec(job: dict) -> dict:
+    """Everything that determines a fitted model: job, features and mappings, hyperparameters, training data,
+    split algorithm, fitting code and library versions (QA 2, R1). Its hash is stored with each model and compared
+    on resume; any difference means the model is refitted."""
+    import harmonise as H
+    from common import folktables_matrix as fm
+    feats = job_features(job)
+    gb = {k: v for k, v in base_model(job["seed"]).get_params().items()}
+    return {"job": {k: job[k] for k in sorted(job)}, "features": FEATURE_SETS[feats],
+            "mapping_sha256": mapping_fingerprint() if feats.startswith("harmonised") else None,
+            "gbm_params": gb, "pooling": [MIN_ROWS, MIN_EACH_LABEL, POOLED],
+            "train_data_sha256": data_sha(job.get("train_year", TRAIN_YEAR)), "smoke": SMOKE,
+            "split_code": _ast_hash(state_split),
+            "fit_code": _ast_hash(fit_job, base_model, _post, kept_categories, pool_categories, Scaler, _aif_dataset,
+                                  design, year_frame, fm, H.harmonise, label),
+            "versions": _versions()}
+
+
+def fit_spec_sha(job: dict) -> str:
+    return hashlib.sha256(json.dumps(fit_spec(job), sort_keys=True, default=str).encode()).hexdigest()
+
+
+def expected_specs() -> dict:
+    """{model name: fit-spec hash} for the registered inventory."""
+    return {n: fit_spec_sha(j) for j in stage_a_jobs() for n in job_names(j)}
+
+
+def pred_spec_sha() -> str:
+    """Prediction convention and the code that turns a frozen model and a data frame into predictions."""
+    import harmonise as H
+    from common import folktables_matrix as fm
+    spec = {"convention": PRED_CONVENTION, "mapping": mapping_fingerprint(),
+            "code": _ast_hash(Frozen, design, year_frame, fm, H.harmonise, pool_categories, _aif_dataset, row_key),
+            "versions": _versions()}
+    return hashlib.sha256(json.dumps(spec, sort_keys=True).encode()).hexdigest()
+
+
 def mapping_fingerprint() -> str:
     """Hash of the harmonisation mappings' content (not of the source file, so comments do not invalidate models)."""
     import harmonise as H
@@ -187,12 +253,14 @@ def mapping_fingerprint() -> str:
     return hashlib.sha256(json.dumps(spec, sort_keys=True, default=str).encode()).hexdigest()
 
 
-def model_current(entry: dict) -> bool:
-    """A frozen model is current if it uses raw features or the current harmonisation mappings."""
-    return entry.get("features") == "raw" or entry.get("mapping_sha256") == mapping_fingerprint()
+def model_current(name: str, entry: dict, specs: dict) -> bool:
+    """A frozen model is current if its fit specification equals the registered one and its file matches its hash."""
+    path = MODELS / f"{name}.joblib"
+    return (name in specs and entry.get("fit_spec_sha256") == specs[name] and path.exists()
+            and sha256_file(path) == entry.get("sha256"))
 
 
-def _save(fz: Frozen, fit_seconds: float, n_train: int, train_year: int) -> dict:
+def _save(fz: Frozen, fit_seconds: float, n_train: int, train_year: int, spec_sha: str) -> dict:
     MODELS.mkdir(parents=True, exist_ok=True)
     path = MODELS / f"{fz.name}.joblib"
     tmp = path.with_suffix(".joblib.tmp")
@@ -202,14 +270,19 @@ def _save(fz: Frozen, fit_seconds: float, n_train: int, train_year: int) -> dict
             "fit_seconds": round(fit_seconds, 1), "n_train": int(n_train), "kind": fz.kind,
             "features": fz.features, "group": fz.group, "seed": fz.seed,
             "kept_categories": fz.keep, "train_year": int(train_year),
-            "mapping_sha256": mapping_fingerprint() if fz.features == "harmonised" else None,
-            "scaling": getattr(fz, "scaling", "frozen")}
+            "mapping_sha256": mapping_fingerprint() if fz.features.startswith("harmonised") else None,
+            "scaling": getattr(fz, "scaling", "frozen"), "fit_spec_sha256": spec_sha, "versions": _versions()}
 
 
 def model_prefix(job: dict) -> str:
     ty = job.get("train_year", TRAIN_YEAR)
     p = f"y{ty}_" if ty != TRAIN_YEAR else ""
+    p += "norace_" if job.get("features") == "harmonised_norace" else ""
     return p + (f"state{job['state']}_" if job.get("state") is not None else "")
+
+
+def job_features(job: dict) -> str:
+    return "raw" if job["kind"] == "rawgbm" else job.get("features", "harmonised")
 
 
 def fit_job(job: dict) -> list[dict]:
@@ -223,12 +296,13 @@ def fit_job(job: dict) -> list[dict]:
         df, test = df[keep].reset_index(drop=True), test[keep]
     tr = ~test
     y = label(df)
-    feats = "raw" if job["kind"] == "rawgbm" else "harmonised"
+    feats = job_features(job)
     X = design(df, feats)
     scaler = Scaler(X[tr])
     Xs = scaler(X)
     out, t0 = [], time.time()
     prefix = model_prefix(job)
+    spec = fit_spec_sha(job)
     if job["kind"] == "peryear":
         # per-year-scaling pipeline (secondary 8.6): scaler fitted on all eligible rows of the training year;
         # at prediction time every year is standardised with its own full-population scaler
@@ -236,11 +310,11 @@ def fit_job(job: dict) -> list[dict]:
         gbm = base_model(seed).fit(full(X)[tr], y[tr])
         fz = Frozen(f"peryear_gbm_s{seed}", feats, full, "gbm", gbm, seed=seed)
         fz.scaling = "per_year"
-        out.append(_save(fz, time.time() - t0, tr.sum(), train_year))
+        out.append(_save(fz, time.time() - t0, tr.sum(), train_year, spec))
     elif job["kind"] in ("gbm", "rawgbm"):
         gbm = base_model(seed).fit(Xs[tr], y[tr])
         name = f"{prefix}{'rawgbm' if feats == 'raw' else 'gbm'}_s{seed}"
-        out.append(_save(Frozen(name, feats, scaler, "gbm", gbm, seed=seed), time.time() - t0, tr.sum(), train_year))
+        out.append(_save(Frozen(name, feats, scaler, "gbm", gbm, seed=seed), time.time() - t0, tr.sum(), train_year, spec))
         for group, constraint in job.get("post", []):
             t1 = time.time()
             raw_sens = df[GROUPS[group]].to_numpy().astype(int)
@@ -249,7 +323,7 @@ def fit_job(job: dict) -> list[dict]:
             post = _post(gbm, Xs[tr], y[tr], sens[tr], constraint)
             fz = Frozen(f"{prefix}post_{constraint}_{group}_s{seed}", feats, scaler, "post", post, group, seed,
                         keep=keep)
-            out.append(_save(fz, time.time() - t1, tr.sum(), train_year))
+            out.append(_save(fz, time.time() - t1, tr.sum(), train_year, spec))
     elif job["kind"] == "expgrad":
         from fairlearn.reductions import DemographicParity, ExponentiatedGradient
         raw_sens = df["RAC1P"].to_numpy().astype(int)
@@ -257,7 +331,7 @@ def fit_job(job: dict) -> list[dict]:
         eg = ExponentiatedGradient(base_model(seed), constraints=DemographicParity())
         eg.fit(Xs[tr], y[tr], sensitive_features=pool_categories(raw_sens, keep)[tr])
         out.append(_save(Frozen(f"expgrad_dp_race_s{seed}", feats, scaler, "expgrad", eg, "race", seed,
-                                keep=keep), time.time() - t0, tr.sum(), train_year))
+                                keep=keep), time.time() - t0, tr.sum(), train_year, spec))
     elif job["kind"] == "lfr":
         from aif360.algorithms.preprocessing import LFR
         race = df["RAC1P"].to_numpy()
@@ -267,7 +341,7 @@ def fit_job(job: dict) -> list[dict]:
         lfr.fit(ds, maxiter=5000, maxfun=5000)
         gbm = base_model(seed).fit(lfr.transform(ds).features, y[tr])
         out.append(_save(Frozen(f"lfr_race_s{seed}", feats, scaler, "lfr", gbm, "race", seed, lfr=lfr),
-                         time.time() - t0, tr.sum(), train_year))
+                         time.time() - t0, tr.sum(), train_year, spec))
     else:
         raise ValueError(job)
     return out
@@ -281,6 +355,8 @@ def stage_a_jobs() -> list[dict]:
     jobs += [dict(kind="gbm", seed=0, state=st, post=[("race", "dp")]) for st in largest_states()]
     jobs += [dict(kind="gbm", seed=s, train_year=2018, post=[("race", "dp"), ("sex", "dp")]) for s in SEEDS]
     jobs += [dict(kind="peryear", seed=s) for s in SEEDS]
+    # sensitivity (secondary 8.10): without race as a feature, for the sex endpoints (race coding changed in 2020)
+    jobs += [dict(kind="gbm", seed=s, features="harmonised_norace", post=[("sex", "dp")]) for s in SEEDS]
     return jobs
 
 
@@ -303,8 +379,22 @@ def train_year_of(name: str, manifest: dict) -> int:
     return int(manifest[name].get("train_year", TRAIN_YEAR))
 
 
-PRED_CONVENTION = "expected-v1"     # float32 P(output = 1) per row (pre-registration 4.4)
+PRED_CONVENTION = "expected-v2"     # float32 P(output = 1) per row; person-level row key (pre-registration 4.4)
 _DATA_SHA: dict = {}
+_CACHE: dict = {}
+
+
+def _pred_spec() -> str:
+    if "pred_spec" not in _CACHE:
+        _CACHE["pred_spec"] = pred_spec_sha()
+    return _CACHE["pred_spec"]
+
+
+def _manifest() -> dict:
+    """The frozen-model manifest, read once per process (a run uses one immutable model inventory)."""
+    if "manifest" not in _CACHE:
+        _CACHE["manifest"] = json.loads(MANIFEST.read_text())
+    return _CACHE["manifest"]
 
 
 def sha256_file(path: Path) -> str:
@@ -321,12 +411,21 @@ def data_sha(year: int) -> str:
     return _DATA_SHA[year]
 
 
+ROW_ID = ["ST", "SERIALNO", "SPORDER"]      # person identity: household (state, serial number) + person number
+
+
 def row_key(df: pd.DataFrame) -> str:
-    """Identity and order of the evaluated rows: hash of (ST, SERIALNO) in row order, plus the row count."""
+    """Identity and order of the evaluated rows: hash of (ST, SERIALNO, SPORDER) in row order, plus the row count."""
     h = hashlib.sha256()
     h.update(np.ascontiguousarray(df["ST"].to_numpy().astype(np.int64)).tobytes())
     h.update("\x1f".join(df["SERIALNO"].astype(str)).encode())
+    h.update(np.ascontiguousarray(df["SPORDER"].to_numpy().astype(np.int64)).tobytes())
     return f"{len(df)}:{h.hexdigest()}"
+
+
+def assert_unique_persons(df: pd.DataFrame) -> None:
+    if df.duplicated(ROW_ID).any():
+        raise RuntimeError("person identity (ST, SERIALNO, SPORDER) is not unique")
 
 
 def load_model(name: str, manifest: dict | None = None) -> "Frozen":
@@ -349,7 +448,8 @@ def _pred_valid(name: str, year: int, manifest: dict, df: pd.DataFrame | None = 
     if not (arr.exists() and meta.exists()):
         return False
     m = json.loads(meta.read_text())
-    ok = (m.get("convention") == PRED_CONVENTION and m.get("model_sha256") == manifest[name]["sha256"]
+    ok = (m.get("convention") == PRED_CONVENTION and m.get("pred_spec_sha256") == _pred_spec()
+          and m.get("model_sha256") == manifest[name]["sha256"]
           and m.get("data_sha256") == data_sha(year) and m.get("pred_sha256") == sha256_file(arr))
     if ok and df is not None:
         ok = m.get("row_key") == row_key(df)
@@ -361,6 +461,7 @@ def predict_year(model_names: list[str], year: int) -> None:
     Existing predictions are reused only if model hash, data hash, row identity and convention all match."""
     manifest = json.loads(MANIFEST.read_text())
     df = year_frame(year)
+    assert_unique_persons(df)
     key = row_key(df)
     for name in model_names:
         if _pred_valid(name, year, manifest, df):
@@ -376,7 +477,8 @@ def predict_year(model_names: list[str], year: int) -> None:
         os.replace(tmp, arr)
         rec = {"model": name, "year": year, "convention": PRED_CONVENTION, "n": len(pred), "row_key": key,
                "model_sha256": manifest[name]["sha256"], "data_sha256": data_sha(year),
-               "pred_sha256": sha256_file(arr), "code_sha256": code_fingerprint()}
+               "pred_sha256": sha256_file(arr), "pred_spec_sha256": _pred_spec(),
+               "code_sha256": code_fingerprint()}
         tmpj = meta.with_suffix(".tmp.json")
         tmpj.write_text(json.dumps(rec, indent=1))
         os.replace(tmpj, meta)
@@ -395,6 +497,10 @@ def load_pred(name: str, year: int, df: pd.DataFrame) -> np.ndarray:
         raise RuntimeError(f"predictions {name}/{year}: data file changed since prediction")
     if m.get("pred_sha256") != sha256_file(arr):
         raise RuntimeError(f"predictions {name}/{year}: file differs from its provenance record")
+    if m.get("pred_spec_sha256") != _pred_spec():
+        raise RuntimeError(f"predictions {name}/{year}: made with another prediction specification")
+    if m.get("model_sha256") != _manifest()[name]["sha256"]:
+        raise RuntimeError(f"predictions {name}/{year}: made by a model that is not the current frozen model")
     p = np.load(arr)
     if len(p) != len(df):
         raise RuntimeError(f"predictions {name}/{year}: length {len(p)} != {len(df)}")
@@ -410,6 +516,36 @@ def code_fingerprint() -> str:
     return h.hexdigest()
 
 
+def provenance(script: str | None = None) -> dict:
+    """Identity of the inputs of a result file: model manifest, prediction specification, git commit and the code
+    that produced it (src/*.py plus the producing script). check_outputs.py compares these with the current state."""
+    import inspect
+    import subprocess
+    root = Path(__file__).resolve().parents[1]
+    if script is None:                  # the calling script
+        script = Path(inspect.stack()[1].filename).name
+    try:
+        commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True).stdout.strip()
+        dirty = bool(subprocess.run(["git", "status", "--porcelain", "--", "src", "scripts"], cwd=root,
+                                    capture_output=True, text=True).stdout.strip())
+    except OSError:
+        commit, dirty = "", None
+    return {"models_manifest_sha256": sha256_file(MANIFEST) if MANIFEST.exists() else None,
+            "pred_spec_sha256": _pred_spec(), "git_commit": commit, "git_dirty_code": dirty,
+            "script": script, "code_sha256": code_sha(script), "smoke": bool(SMOKE),
+            "time": time.strftime("%Y-%m-%dT%H:%M:%S")}
+
+
+def code_sha(script: str) -> str:
+    """Hash of src/*.py and the producing script(s) ("a.py+b.py" for a script that uses another one's code)."""
+    root = Path(__file__).resolve().parents[1]
+    code = hashlib.sha256()
+    for f in sorted((root / "src").glob("*.py")) + [root / "scripts" / x for x in script.split("+")]:
+        if f.exists():
+            code.update(f.name.encode()); code.update(f.read_bytes())
+    return code.hexdigest()
+
+
 def prediction_years(name: str, manifest: dict, years) -> list[int]:
     """Years a model is evaluated on: from its training year on; raw-code models only on 2014-2018."""
     ty = train_year_of(name, manifest)
@@ -420,18 +556,15 @@ def verify_inventory(years, write_record: bool = True) -> dict:
     """Exact inventory check before any analysis: the manifest holds exactly the expected models, every model file
     matches its hash, and every required prediction exists with a matching provenance record. Raises otherwise."""
     manifest = json.loads(MANIFEST.read_text())
-    expected = set(expected_models())
+    specs = expected_specs()
+    expected = set(specs)
     problems = []
     if set(manifest) != expected:
         problems.append(f"manifest differs: missing {sorted(expected - set(manifest))[:8]}, "
                         f"unexpected {sorted(set(manifest) - expected)[:8]}")
     for name in sorted(expected & set(manifest)):
-        if not model_current(manifest[name]):
-            problems.append(f"model fitted with other harmonisation mappings: {name}")
-            continue
-        path = MODELS / f"{name}.joblib"
-        if not path.exists() or sha256_file(path) != manifest[name]["sha256"]:
-            problems.append(f"model file missing or altered: {name}")
+        if not model_current(name, manifest[name], specs):
+            problems.append(f"model missing, altered or fitted under another specification: {name}")
             continue
         for y in prediction_years(name, manifest, years):
             if not _pred_valid(name, y, manifest):
@@ -440,7 +573,7 @@ def verify_inventory(years, write_record: bool = True) -> dict:
     if not SMOKE and len(states) != N_STATES:
         problems.append(f"{len(states)} source states, expected {N_STATES}")
     rec = {"checked_years": list(years), "n_models": len(manifest), "problems": problems,
-           "time": time.strftime("%Y-%m-%dT%H:%M:%S")}
+           "time": time.strftime("%Y-%m-%dT%H:%M:%S"), "provenance": provenance()}
     if write_record:                    # one record per set of checked years (Stage A and Stage B keep theirs)
         out = (MANIFEST.parent / ("inventory_check.json" if not SMOKE else "smoke_inventory_check.json"))
         allrec = json.loads(out.read_text()) if out.exists() else {}

@@ -1,0 +1,53 @@
+{
+ "tests": {
+  "dp_finite_when_eo_race_not_computable": {
+   "passed": true,
+   "detail": "unweighted invalid={'eo_race': 'empty group'}"
+  },
+  "weighted_fails_independently": {
+   "passed": true,
+   "detail": "weighted invalid={'eo_race': 'not computable'}"
+  },
+  "zero_replicate_denominator_is_metric_local": {
+   "passed": true,
+   "detail": "invalid={'dp_race': 'not computable', 'eo_race': 'not computable'}"
+  },
+  "three_way_nan_estimate": {
+   "passed": true,
+   "detail": ""
+  },
+  "three_way_nan_se": {
+   "passed": true,
+   "detail": ""
+  },
+  "c7_nan_yardstick": {
+   "passed": true,
+   "detail": ""
+  },
+  "c7_nan_covariance": {
+   "passed": true,
+   "detail": ""
+  },
+  "expected_accuracy_matches_randomised_policy": {
+   "passed": true,
+   "detail": "0.5001 vs 0.5001"
+  },
+  "dp_formula": {
+   "passed": true,
+   "detail": ""
+  },
+  "weighted_accuracy_formula": {
+   "passed": true,
+   "detail": ""
+  },
+  "violated_bound_alpha_not_half": {
+   "passed": true,
+   "detail": "P(violated)=0.008333"
+  },
+  "c7_interval_contains_point": {
+   "passed": true,
+   "detail": ""
+  }
+ },
+ "all_passed": true
+}

@@ -9,7 +9,7 @@
     "463": 183
    },
    "rows_in_destination_override_codes": 31213,
-   "share_rows_in_codes_with_cross_group_edges": 0.05491492931348938
+   "share_rows_in_codes_with_cross_group_edges": 0.027117068550296754
   },
   "2015": {
    "rows": 1603542,
@@ -20,7 +20,7 @@
     "463": 187
    },
    "rows_in_destination_override_codes": 32391,
-   "share_rows_in_codes_with_cross_group_edges": 0.05662527080675155
+   "share_rows_in_codes_with_cross_group_edges": 0.02819570675417295
   },
   "2016": {
    "rows": 1618060,
@@ -31,7 +31,7 @@
     "463": 184
    },
    "rows_in_destination_override_codes": 32587,
-   "share_rows_in_codes_with_cross_group_edges": 0.057278469278024303
+   "share_rows_in_codes_with_cross_group_edges": 0.02858917469067896
   },
   "2017": {
    "rows": 1642973,
@@ -42,7 +42,7 @@
     "463": 33
    },
    "rows_in_destination_override_codes": 32972,
-   "share_rows_in_codes_with_cross_group_edges": 0.05804599345211394
+   "share_rows_in_codes_with_cross_group_edges": 0.02882579324188529
   },
   "2018": {
    "rows": 1664500,
@@ -64,15 +64,6 @@
    "5800": "CMM"
   },
   "split_codes_with_cross_group_destination": [
-   {
-    "code_2010": 430,
-    "own_group": "MGR",
-    "destination_groups": [
-     "BUS",
-     "MGR"
-    ],
-    "own_group_among_destinations": true
-   },
    {
     "code_2010": 1107,
     "own_group": "CMM",
@@ -119,15 +110,6 @@
     "own_group_among_destinations": true
    },
    {
-    "code_2010": 9520,
-    "own_group": "TRN",
-    "destination_groups": [
-     "EXT",
-     "TRN"
-    ],
-    "own_group_among_destinations": true
-   },
-   {
     "code_2010": 9820,
     "own_group": "MIL",
     "destination_groups": [
@@ -137,32 +119,50 @@
     "own_group_among_destinations": true
    }
   ],
-  "edges_to_codes_not_in_pums_dictionary": [
-   [
-    430,
-    [
+  "codes_with_unresolved_destinations_kept_in_own_group": [
+   {
+    "code_2010": 430,
+    "own_group": "MGR",
+    "unresolved_destinations": [
      426
+    ],
+    "resolved_groups": [
+     "BUS",
+     "MGR"
     ]
-   ],
-   [
-    3060,
-    [
+   },
+   {
+    "code_2010": 3060,
+    "own_group": "MED",
+    "unresolved_destinations": [
      3065,
      3070
+    ],
+    "resolved_groups": [
+     "MED"
     ]
-   ],
-   [
-    3730,
-    [
+   },
+   {
+    "code_2010": 3730,
+    "own_group": "PRT",
+    "unresolved_destinations": [
      3735
+    ],
+    "resolved_groups": [
+     "PRT"
     ]
-   ],
-   [
-    9520,
-    [
+   },
+   {
+    "code_2010": 9520,
+    "own_group": "TRN",
+    "unresolved_destinations": [
      6821
+    ],
+    "resolved_groups": [
+     "EXT",
+     "TRN"
     ]
-   ]
+   }
   ],
   "destination_group_matches_crosswalk": true
  },

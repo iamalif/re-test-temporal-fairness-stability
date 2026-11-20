@@ -1,6 +1,6 @@
 # Pre-registration: Does fairness stay put? A re-test of temporal fairness stability on ACS 2014–2024
 
-**Status:** DRAFT v0.3 (20 Nov 2026). Changes since v0.2: decision log D021–D024, D023 in response to an
+**Status:** DRAFT v0.3 (20 Nov 2026). Changes since v0.2: decision log D021–D026, D023 and D026 in response to an
 independent review (`docs/qa_independent_1_report.md`, disposition in `docs/qa_independent_1_disposition.md`).
 Not yet archived. Values marked ⟨A⟩ are filled from Stage A result files once the Stage A rerun finishes; the rules
 that produce them are fixed here.
@@ -41,8 +41,9 @@ and whether the race DP gap changes less than accuracy relative to geographic ya
   (original-cohort years) and a label-drift explanation, which we treat as prior evidence.
 - **Theory read in full:** Chen et al. (NeurIPS 2022, arXiv 2206.00129), including their state-level 2014→2018
   results; Asiaee and Aryan (arXiv 2602.05144).
-- **Independent review (19 Nov 2026):** the reviewer inspected code, plan and 2014–2018 aggregate results only; it
-  opened no person records and no later-year outcomes.
+- **Independent reviews (19 and 20 Nov 2026):** the reviewer inspected code, plan, documentation and 2014–2018
+  aggregate results only, and opened no person records. It encountered the already-recorded statement listed above
+  (an external result of unstated years) and opened no source of later-year outcomes.
 
 ## 3. Data
 
@@ -84,7 +85,11 @@ and whether the race DP gap changes less than accuracy relative to geographic ya
 All models are trained on a training split (within-state 80/20 random split, seeded, of persons) of their training
 year (2014 unless stated) and saved with their preprocessing. Model files (≈135 MB) are deposited with the archive;
 their SHA-256 hashes are in `results/models_manifest.json` (hash of that file: ⟨A⟩), and every load verifies them.
-Each harmonised model also records a fingerprint of the harmonisation mappings it was trained with.
+Each model also records the hash of its **fit specification**: the job, the feature list and harmonisation mappings,
+all estimator hyperparameters, the SHA-256 of the training-year data file, the code of the split and of the fitting
+functions (comments ignored) and the library versions. A model counts as fitted only if this hash equals the
+registered one and the file matches its hash; anything else is refitted. Derived data files record the hashes of
+their raw Census files and of the build code.
 
 - **Base model (reconstruction rule, D015):** `GradientBoostingClassifier(loss="exponential", max_depth=5,
   n_estimators=100)`. The 5 trees stated in the paper do not reproduce its figures (accuracy 0.10–0.15 below the
@@ -116,6 +121,13 @@ Each harmonised model also records a fingerprint of the harmonisation mappings i
 - **Per-state models (geographic yardsticks):** base model and DP post-processing (race) for each of the 20 largest
   states by 2014 rows (Puerto Rico excluded), trained on that state's 2014 training split, seed 0.
 - **Raw-code model (8.7):** the base model on unharmonised codes, seed 0, for 2014–2018 only.
+- **No-race models (secondary 8.10):** the base model (seeds 0–4) without race among the features, and its DP
+  post-processing for sex. Race is an input of every primary model, and its measurement changed in 2020, so primary
+  sex results after 2019 include any effect of that change on predictions; these models show the sex results
+  without it. 98 models in total.
+- **Predictions** are stored with a provenance record (model hash, data-file hash, person-level row identity
+  (state, household serial number, person number), prediction convention and the hash of the prediction code) that
+  is checked against the current frozen model and code before every use.
 - **Evaluation sets:** training year: the held-out test split of the model's seed; every other year: all eligible
   rows of that year. Per-state models: own state's 2014 test split; other states and other years: all rows of that
   state-year. The person-level split leaves members of one household on both sides; it is kept for fidelity to the
@@ -143,8 +155,10 @@ the seed-average of the five frozen models. B_m = (1/5) Σ_{t=2014}^{2018} m(t) 
 
 **Reported with the same machinery, outside the family:**
 - **C5 (secondary):** EO gap (race), GBM, EO_race(2019) − B, three-way with δ_EO,race at α = 0.05. Moved out of the
-  family before any later-year data were seen because, at its anticipated standard error, a "holds" decision is
-  almost unreachable even with no true change (Section 7.6).
+  family before any later-year data were seen, because of its operating characteristics at the anticipated
+  standard error (Section 7.6): at the family level α = 0.05/6 the probability of "holds" with no true change was
+  0.31 unweighted and 0 weighted (pre-refit models), so the test would mostly spend family-wise error without being
+  able to conclude stability. Its operating characteristics at α = 0.05 are reported as well.
 - **C8 (descriptive):** for each of the 20 states, the noise-corrected |ΔDP_race| of the state's own model between
   its 2014 test split and the state's 2019 rows, against the state's geographic reference (median over the other 19
   states of the noise-corrected |DP_race(s → s′) − DP_race(s → s)| in 2014). We report the count of states with a
@@ -155,7 +169,17 @@ the seed-average of the five frozen models. B_m = (1/5) Σ_{t=2014}^{2018} m(t) 
 in between; the full trajectories are reported (8.1) without family-wise control. C3/C4 ask whether a model's
 disparity stays inside the range it showed in 2014–2018; they do not certify a model or a fairness level. C7
 compares changes scaled by geographic yardsticks; the raw changes are reported beside D. None of the tests concerns
-the original fitted classifier; they concern frozen models built by the reconstructed, harmonised pipeline.
+the original fitted classifier; they concern frozen models built by the reconstructed, harmonised pipeline. The sex
+endpoints (C2, C4, C6) concern models that use race as an input; with race measured differently from 2020, they
+include any effect of that change on predictions (8.10 reports them without race as an input).
+
+**Target of inference.** θ compares the later year's population value with the *population* 2014–2018 baseline
+(target (b) of the second review), so the baseline's sampling variance enters every standard error. The margins,
+envelopes and yardsticks are fixed numbers computed once from the observed 2014–2018 estimates and are not
+re-estimated; the decision is judged against these realised numbers. Because the same historical estimates give
+both the baseline and the margin, the error rates are not guaranteed by the interval alone; they were checked by a
+joint simulation that redraws the historical estimates, the calibration rule, the baseline and the later-year
+estimate together (Section 7.6). All intervals are large-sample normal approximations.
 
 **Why the baseline rather than 2014 alone (C1–C6):** the 2014 evaluation set is the 20% test split, so a change
 measured from 2014 alone has a standard error of about 0.003 for the race DP gap, and the Bonferroni interval would
@@ -180,8 +204,9 @@ them: they do not claim to estimate a "true" historical range, and their samplin
 - **Floor 0.01** is fixed a priori as the smallest change treated as substantive; it binds only if the observed
   2014–2018 variation is smaller.
 - **Margin sensitivity:** every three-way decision is also reported for margins 0.005, 0.0075, …, 0.03.
-- **Formal statement.** For C1, C2, C6 with margin δ: "holds" rejects H₀: |θ| ≥ δ; "violated" rejects H₀′: |θ| ≤ δ;
-  each at level α/2 (Section 7.2). For C3/C4 the same with ε. For C7: "fairness more stable" rejects H₀: D ≥ 0 and
+- **Formal statement.** For C1, C2, C6 with margin δ: "holds" rejects H₀: |θ| ≥ δ at level α/2; "violated"
+  rejects H₀′: |θ| ≤ δ at level α (either tail of the interval can produce a false "violated"; Section 7.2). For
+  C3/C4 the same with ε. For C7: "fairness more stable" rejects H₀: D ≥ 0 and
   "accuracy more stable" rejects H₀′: D ≤ 0, with total error probability at most α.
 
 ## 7. Inference and decision rules
@@ -195,16 +220,22 @@ analysis approximates with the Census replicate weights. Estimates for different
 variances add. A seed-average uses the mean of the per-seed standard errors (for two-dimensional C7, the mean of the
 per-seed covariance matrices), which bounds the variance of the seed-average from above.
 
-**Test-split estimates.** An estimate on a 20% test split carries the variability of the split. Before archiving,
-`scripts/check_split_variance.py` compares, on 2018 with 200 random within-state splits, the average variance
-estimate on a split (V_split) with the variance of the full-sample estimate plus the between-split variance
-(V_full + S). For every metric and weighting, the variance of every training-year test-split estimate is multiplied
-by max(1, (V_full + S)/V_split). Values: ⟨A⟩ (`results/validation/split_variance.json`).
+**Test-split estimates (empirical calibration).** An estimate on a 20% test split carries the variability of the
+split. Before archiving, `scripts/check_split_variance.py` evaluates, on 2018 with 400 random within-state splits,
+15 configurations: six model families (base, DP post-processing for race and for sex, EO post-processing, ExpGrad,
+per-year scaling), each with both label rules, and the base per-state model in the largest, a middle and the
+smallest of the 20 states. For each it compares the average variance estimate on a split (V_split) with the
+variance of the full-sample estimate plus the between-split variance (V_full + S), using the one-sided 95% upper
+confidence bound of S so that Monte Carlo error enlarges the adjustment. The variance of every training-year
+test-split estimate of a metric and weighting is multiplied by the largest ratio over the configurations, floored at
+1. Values and all per-configuration ratios: ⟨A⟩ (`results/validation/split_variance.json`). This is a calibration over
+representative settings, not a derivation.
 
 ### 7.2 Decisions
 - **C1–C6 (three-way):** with the two-sided (1 − α) normal interval: **holds** if it lies inside [−margin, margin];
-  **violated** if it lies entirely outside; **inconclusive** otherwise. If |θ| ≥ margin, P(holds) ≤ α/2; if
-  |θ| ≤ margin, P(violated) ≤ α/2.
+  **violated** if it lies entirely outside; **inconclusive** otherwise. For a fixed margin and a valid interval:
+  if |θ| ≥ margin, P(holds) ≤ α/2; if |θ| ≤ margin, P(violated) ≤ α (it approaches α when the margin is small
+  relative to the standard error).
 - **C7 (conservative projection interval):** a simultaneous (1 − α) box for the two changes, each side the two-sided
   (1 − α/2) normal interval (valid for any correlation); the interval for D is the exact range of D over the box.
   **Fairness more stable** if it lies below 0; **accuracy more stable** if above 0; else inconclusive. If the box
@@ -224,8 +255,10 @@ All outcomes of C1–C8 will be reported whatever they are, including inconclusi
 intervals, in the main text.
 
 ### 7.5 Numerical failures and ties
-An estimate whose group or denominator is empty, or any non-finite estimate or standard error, is reported as
-"not computable" for the affected claim (never dropped or replaced). For the geographic yardsticks, a state pair
+Failures are metric-local: a metric whose group or denominator is empty (under the full weight or any replicate
+weight) is not computable, while the other metrics of the same estimate, and the other weighting, are unaffected.
+A claim whose estimate, standard error, margin or yardstick is not finite is reported as "not computable" (never
+dropped or replaced). For the geographic yardsticks, a state pair
 that is not computable is recorded as such and left out of the median, and the number of such pairs is reported
 (on 2014 every pair is computable: the smallest count of Black persons with income above $50,000 in a source state's
 test split is 20). In C8 and 8.8, a state that is not computable is reported as such and left out of the counts.
@@ -237,6 +270,11 @@ At the standard errors anticipated from 2014–2018 (later year approximated by 
 simulation (`scripts/validate_inference.py`, `results/validation/inference_validation.json`). Anticipated standard
 errors and the probability of "holds" at θ = 0 (unweighted / weighted): ⟨A⟩. C7 coverage over a grid of true changes
 including zeros and the boundary D = 0, at the anticipated covariance and under stress settings: minimum ⟨A⟩.
+**Joint simulation** (C1–C4, C6): the five historical estimates, the calibration rule, the baseline estimate and the
+later-year estimate are redrawn together, for a flat history and for the observed 2014–2018 shape, over true
+values θ from 0 to 0.03; an error is judged against the realised margin. Acceptance criteria, fixed now: false
+"holds" ≤ α/2 and false "violated" ≤ α, each within three Monte Carlo standard errors; C7 coverage ≥ 1 − α; the
+three-way rule's analytic false-"holds" probability ≤ α/2 for every θ beyond the margin. Results: ⟨A⟩.
 
 ## 8. Secondary analyses (pre-specified, no family-wise claim; 95% intervals)
 
@@ -266,13 +304,18 @@ counterfactual, which is the change in labels given features *plus approximation
 density ratio, clipping, lack of overlap). Domain classifier: scikit-learn `HistGradientBoostingClassifier`
 (defaults), 5-fold cross-fitted with folds that keep households together; 2014 test rows are reweighted by the odds,
 clipped at the 99.9th percentile (primary), 99th percentile and unclipped (sensitivity).
-Diagnostics: domain AUC, effective sample size, largest weight relative to the mean, overlap shares, and the largest
-absolute standardised mean difference of the features after reweighting within White, Black, male and female rows.
+Diagnostics: domain AUC, effective sample size, largest weight relative to the mean, overlap shares, and, within
+White, Black, male and female rows before and after reweighting, a balance measure that does not treat category
+codes as numbers: the standardised difference of the share of every category with pooled share ≥ 1% (all
+categorical features) and the standardised mean difference of age and hours, with the largest value reported, plus
+the total-variation distance of each categorical feature.
 **Reliability rule:** the decomposition is interpreted only if (i) the DP residual is within ±0.005 for race and for
-sex (a frozen model's DP depends only on the features, so it must be near zero), (ii) the largest group-wise
-standardised mean difference is at most 0.05 (stricter than the usual 0.10 because temporal shifts are small: on
-2014 → 2018 the largest group-wise difference before reweighting is about 0.05, so 0.10 could not discriminate), and (iii) the accuracy residual changes by at most 0.005 between 99.9%
-clipping and no clipping. Otherwise the split is reported as unreliable and P2 is not assessed. Passing is a
+sex (a frozen model's DP depends only on the features, so it must be near zero); (ii) in each group the largest
+balance value after reweighting is at most 0.02 + 3·sqrt(1/ESS + 1/n_target), a 0.02 tolerance plus a
+sampling-noise allowance from the group's effective sample size and target size; and (iii) the residuals of
+accuracy and of both EO gaps change by at most 0.005 between 99.9% clipping and no clipping. The thresholds were set
+on the 2014 → 2018 data (allowed): before reweighting every group fails (largest values 0.039–0.046 against limits
+0.027–0.039), after reweighting every group passes (0.010–0.023), and the clipping changes are below 0.001. Otherwise the split is reported as unreliable and P2 is not assessed. Passing is a
 necessary check, not proof that the residual is a label change. The rule was run before archiving on 2014 → 2018
 (`results/stage_a/decomposition_2018_check.json`): ⟨A⟩.
 
@@ -303,6 +346,10 @@ for which the comparison is computable.
 split to 2019 and 2021–2024, with standard errors (seed means). Descriptive: the 2014–2018 calibration constants do
 not apply to a model deployed at the end of that window.
 
+8.10 **Without race as an input:** the C2, C4 and C6 rules applied to the no-race models at 2024, with calibration
+constants computed by the same rules from those models' own 2014–2018 estimates, at α = 0.05, beside the primary
+results.
+
 ## 9. Known limitations and deviations policy
 
 - Harmonisation: occupation groups are coarse and the 2018 recoding leaves residual shifts; the Cyprus mapping is an
@@ -322,17 +369,23 @@ not apply to a model deployed at the end of that window.
 
 Python 3.12, `uv.lock` (numpy 2.5.5, pandas 3.1.1, scikit-learn 1.9.1, scipy 1.17.1, fairlearn 0.15.0, aif360 0.6.1,
 folktables @ ebace19). One command per stage: `bash scripts/run_all.sh stage_a` (before archiving) and
-`bash scripts/run_all.sh stage_b` (after). Every step exits non-zero on failure; an exact inventory check (models,
-hashes, prediction provenance, 20 states, 380 pairs) runs before every analysis; `scripts/check_outputs.py` enforces
-`prereg/OUTPUT_CHECKLIST.md`.
+`bash scripts/run_all.sh stage_b` (after). Every step exits non-zero on failure. Every script that consumes
+predictions first runs the inventory check (exact model list, fit specifications, model and prediction hashes,
+prediction provenance against the current models and code, 20 states, 380 pairs). Every result file carries a
+provenance block (model-manifest hash, prediction-specification hash, git commit, hash of src/ and of the producing
+script). `scripts/check_outputs.py` re-runs the inventory check, rejects result files whose provenance does not
+match the current state, checks the acceptance criteria of Section 7.6 and the completeness of every output, and
+enforces `prereg/OUTPUT_CHECKLIST.md`. Synthetic tests: estimators and decision rules (`scripts/test_analysis.py`),
+download integrity (`scripts/test_fetch.sh`), artifact tampering and failing workers (`scripts/test_integrity.py`).
 
 **Archive.** Deposited on Zenodo (one immutable record) before any ACS person record for 2019 or later is
 downloaded: this file; the code at the archived commit; `uv.lock`; the frozen model files; `results/models_manifest.json`;
 the Stage A result files (calibration constants, stored 2014–2018 estimates, validation results); the harmonisation
 report and provenance table. The repository is also saved by Software Heritage. `prereg/ARCHIVE_RECEIPT.json` records
 the DOI, the Software Heritage identifier and the SHA-256 of every deposited file; `prereg/ARCHIVED` is created only
-after the receipt has been checked against the deposited files. It guards against accidental access; the receipt is
-the evidence of archiving. The SHA-256 of this file will be quoted in the paper.
+after `scripts/verify_archive.py` has checked the receipt against the local files and the public Zenodo record
+(file list, MD5 checksums, sizes, DOI) and against the current pre-registration, manifest and Stage A files. The flag
+guards against accidental access; the verified receipt is the evidence of archiving. The SHA-256 of this file will be quoted in the paper.
 
 ## 11. Use of AI assistance
 

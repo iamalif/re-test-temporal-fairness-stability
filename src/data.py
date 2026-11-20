@@ -117,14 +117,48 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+def _logged_raw_hashes() -> dict:
+    out = {}
+    path = ROOT / "logs" / "raw_sha256.txt"
+    if path.exists():
+        for line in path.read_text().splitlines():
+            h, _, f = line.partition("  ")
+            out[f.strip()] = h.strip()
+    return out
+
+
+def build_spec_sha() -> str:
+    """Hash of the code and constants that turn raw files into the derived file (comments and docstrings ignored)."""
+    import ast
+    import inspect
+    h = hashlib.sha256()
+    for fn in (read_year_universe, _read_member_filtered, acsincome_universe):
+        tree = ast.parse(inspect.getsource(fn))
+        f = tree.body[0]
+        if f.body and isinstance(f.body[0], ast.Expr) and isinstance(getattr(f.body[0], "value", None), ast.Constant):
+            f.body = f.body[1:] or [ast.Pass()]
+        h.update(ast.dump(tree, annotate_fields=False).encode())
+    h.update(json.dumps([FEATURES, EXTRA, sorted(REQUIRED), sorted(EXCLUDED_ST), sorted(GEOGRAPHIES)]).encode())
+    return h.hexdigest()
+
+
 def build_year(year: int, overwrite: bool = False) -> Path:
     DERIVED.mkdir(parents=True, exist_ok=True)
     out = DERIVED / f"acsincome_{year}.parquet"
     meta_path = DERIVED / f"acsincome_{year}.json"
+    raw = {f: _sha256(RAW / str(year) / f) for f in ("csv_pus.zip", "csv_ppr.zip") if (RAW / str(year) / f).exists()}
     if out.exists() and meta_path.exists() and not overwrite:
         meta = json.loads(meta_path.read_text())
         if meta.get("sha256_parquet") != _sha256(out) or set(map(int, meta["rows_by_ST"])) != GEOGRAPHIES:
             raise RuntimeError(f"{out} does not match its metadata or geography set; rebuild with --overwrite")
+        if "raw_sha256" in meta:          # derived file bound to its raw inputs and build specification (QA 2, R1)
+            if meta["raw_sha256"] != raw or meta.get("build_spec_sha256") != build_spec_sha():
+                raise RuntimeError(f"{out}: raw inputs or build specification changed; rebuild with --overwrite")
+        else:                             # files built before these fields existed: raw inputs checked against the
+            logged = _logged_raw_hashes()   # hashes logged at download (logs/raw_sha256.txt)
+            for f, h in raw.items():
+                if logged.get(f"data/raw/{year}/{f}") != h:
+                    raise RuntimeError(f"{year}/{f}: raw file differs from logs/raw_sha256.txt")
         return out
     uni, info = read_year_universe(year)
     keep = [c for c in FEATURES + EXTRA + REPWEIGHTS if c in uni.columns]
@@ -147,6 +181,8 @@ def build_year(year: int, overwrite: bool = False) -> Path:
         "columns": keep,
         "missing_counts": {c: int(uni[c].isna().sum()) for c in keep if c not in REPWEIGHTS},
         "sha256_parquet": _sha256(out),
+        "raw_sha256": raw,
+        "build_spec_sha256": build_spec_sha(),
     })
     tmpm = meta_path.with_suffix(".json.tmp")
     tmpm.write_text(json.dumps(info, indent=2))

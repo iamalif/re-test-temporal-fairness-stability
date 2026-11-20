@@ -22,10 +22,10 @@ sys.path.insert(0, str(ROOT / "src"))
 import numpy as np
 import pandas as pd
 
-from analysis import (METRICS, REP, Estimate, NotComputable, change, compare_stability, household_ids, inflate,
-                      noise_corrected_abs, sign_count, split_multiplier, three_way, unweighted, weighted)
+from analysis import (METRICS, REP, Estimate, NotComputable, change, compare_stability, estimates,
+                      noise_corrected_abs, sign_count, three_way)
 from common import label, load_year, state_split
-from pipeline import MANIFEST, SEEDS, SMOKE, load_pred, train_year_of, verify_inventory
+from pipeline import MANIFEST, SEEDS, SMOKE, load_pred, provenance, train_year_of, verify_inventory
 
 FAMILY = ("C1", "C2", "C3", "C4", "C6", "C7")
 ALPHA = 0.05 / len(FAMILY)
@@ -43,7 +43,7 @@ if SMOKE:   # code test on original-cohort years only: 2017 and 2018 stand in fo
 
 
 def frame(year):
-    df = load_year(year, columns=["PINCP", "RAC1P", "SEX", "ST", "SERIALNO", "PWGTP"] + REP)
+    df = load_year(year, columns=["PINCP", "RAC1P", "SEX", "ST", "SERIALNO", "SPORDER", "PWGTP"] + REP)
     if SMOKE:
         df = df.sample(n=int(SMOKE), random_state=0).reset_index(drop=True)
     return df
@@ -57,12 +57,7 @@ def estimate(name, year, df, seed=0, rows=None, rule=">", train_year=2014):
     if rows is not None:
         keep &= rows
     y = label(df, rule=rule)
-    sub = df[keep].reset_index(drop=True)
-    eu = Estimate.from_unweighted(unweighted(pred[keep], y[keep], sub), household_ids(sub))
-    ew = Estimate.from_weighted(weighted(pred[keep], y[keep], sub), int(keep.sum()))
-    if year == train_year and not SMOKE:
-        eu, ew = inflate(eu, split_multiplier("unweighted")), inflate(ew, split_multiplier("weighted"))
-    return eu, ew
+    return estimates(pred[keep], y[keep], df[keep], split=(year == train_year), apply_split_multiplier=not SMOKE)
 
 
 _STORE = {}
@@ -73,7 +68,7 @@ def stored(name, year, wt):
     if not _STORE:
         _STORE.update(json.loads((MARGINS.parent / "estimates_2014_2018.json").read_text()))
     e = _STORE[f"{name}|{year}|{wt}"]
-    return Estimate(e["values"], np.array(e["cov"]), e["n"])     # split multipliers already applied in Stage A
+    return Estimate(e["values"], np.array(e["cov"]), e["n"], e.get("invalid"))   # split multipliers applied in A
 
 
 def seed_mean_dev_from_baseline(family, year, frames, metric, wi):
@@ -114,7 +109,8 @@ def main():
     margins = json.loads(MARGINS.read_text())
     manifest = json.loads(MANIFEST.read_text())
     frames = {y: frame(y) for y in (2014, Y_RACE, Y_SEX)}
-    res = {"family": list(FAMILY), "alpha_per_test": ALPHA, "alpha_secondary": ALPHA_SECONDARY}
+    res = {"family": list(FAMILY), "alpha_per_test": ALPHA, "alpha_secondary": ALPHA_SECONDARY,
+           "provenance": provenance(), "stage_a_margins_provenance": margins.get("provenance")}
     for wi, wt in enumerate(WT):
         mg, r = margins[wt], {}
 
@@ -154,12 +150,8 @@ def main():
             k = METRICS.index("dp_race")
             for st in margins["states"]:
                 name = f"state{st}_gbm_s0"
-                try:
-                    e0 = estimate(name, 2014, frames[2014], 0, rows=(frames[2014]["ST"] == st).to_numpy())[wi]
-                    e1 = estimate(name, Y_RACE, frames[Y_RACE], 0, rows=(frames[Y_RACE]["ST"] == st).to_numpy())[wi]
-                except NotComputable as e:
-                    detail[str(st)] = {"decision": "not computable", "reason": str(e)}
-                    continue
+                e0 = estimate(name, 2014, frames[2014], 0, rows=(frames[2014]["ST"] == st).to_numpy())[wi]
+                e1 = estimate(name, Y_RACE, frames[Y_RACE], 0, rows=(frames[Y_RACE]["ST"] == st).to_numpy())[wi]
                 dlt, cov = change(e1, e0)
                 se = float(np.sqrt(cov[k, k]))
                 t, g = noise_corrected_abs(dlt["dp_race"], se), mg["G_by_source_state"]["dp_race"][str(st)]

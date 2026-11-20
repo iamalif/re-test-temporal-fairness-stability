@@ -1,5 +1,11 @@
 # Disposition of independent QA 1 (report: `docs/qa_independent_1_report.md`)
 
+> **CURRENT STATUS OVERRIDES THE TABLE BELOW (20 Nov 2026).** The table is the original response of 19 Nov, kept
+> for the record. Since then: every model trained on harmonised features is being refitted (harmonisation bug, D023);
+> the confirmatory family has **six** tests (C1, C2, C3, C4, C6, C7; α = 0.05/6), C5 is secondary and C8 descriptive;
+> the second review (`docs/qa_independent_round_2_report.md`) and its disposition
+> (`docs/qa_independent_round_2_disposition.md`, D026) supersede the "Status after implementation" section below.
+
 Date: 2026-11-19. Status: all findings accepted or under evidence-gathering; archiving blocked until every row is closed.
 No finding requires refitting ExpGrad or any existing frozen model. One new cheap model family is added before archiving (#12).
 No 2019+ data has been opened; all validation below uses synthetic data or 2014–2018.

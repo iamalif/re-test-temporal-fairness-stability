@@ -22,10 +22,10 @@ sys.path.insert(0, str(ROOT / "src"))
 import numpy as np
 import pandas as pd
 
-from analysis import (METRICS, REP, Estimate, NotComputable, change, household_ids, inflate, noise_corrected_abs, split_multiplier,
-                      unweighted, weighted)
+from analysis import METRICS, REP, change, noise_corrected_abs
+from analysis import estimates as _estimates
 from common import label, load_year, state_split
-from pipeline import MANIFEST, N_STATES, SEEDS, SMOKE, load_pred, train_year_of, verify_inventory
+from pipeline import MANIFEST, N_STATES, SEEDS, SMOKE, load_pred, provenance, train_year_of, verify_inventory
 
 YEARS = (2014, 2015, 2016, 2017, 2018)
 FLOOR = 0.01
@@ -35,20 +35,15 @@ if __import__("os").environ.get("RT_SMOKE_ROWS"):
 
 
 def frame(year):
-    df = load_year(year, columns=["PINCP", "RAC1P", "SEX", "ST", "SERIALNO", "PWGTP"] + REP)
+    df = load_year(year, columns=["PINCP", "RAC1P", "SEX", "ST", "SERIALNO", "SPORDER", "PWGTP"] + REP)
     if SMOKE:                       # same fixed subsample as the pipeline's smoke mode
         df = df.sample(n=int(SMOKE), random_state=0).reset_index(drop=True)
     return df
 
 
 def estimates(pred, y, df, split=False):
-    """(unweighted, weighted) estimates; split=True for estimates on a 20% test split, whose variances get the
-    pre-specified multipliers of results/validation/split_variance.json (pre-registration 7.3)."""
-    eu = Estimate.from_unweighted(unweighted(pred, y, df), household_ids(df))
-    ew = Estimate.from_weighted(weighted(pred, y, df), len(y))
-    if split and not SMOKE:
-        eu, ew = inflate(eu, split_multiplier("unweighted")), inflate(ew, split_multiplier("weighted"))
-    return eu, ew
+    """Central estimate builder (src/analysis.estimates); split multipliers applied to test-split estimates."""
+    return _estimates(pred, y, df, split=split, apply_split_multiplier=not SMOKE)
 
 
 def main():
@@ -115,11 +110,8 @@ def main():
     st14 = df14["ST"].to_numpy()
     test14 = state_split(df14, 0)
     geo_rows, own = [], {}
-    def safe(fn):
-        try:
-            return fn()
-        except NotComputable:          # failure policy (prereg 7.5): recorded as not computable, never dropped
-            return None
+    def safe(fn):                       # estimates are metric-local (NaN where not computable, prereg 7.5)
+        return fn()
 
     for s in states:
         pred = load_pred(f"state{s}_gbm_s0", 2014, df14)
@@ -131,19 +123,19 @@ def main():
             m_t = st14 == t
             e_t = safe(lambda: estimates(pred[m_t], y14[m_t], df14[m_t].reset_index(drop=True)))
             for wi, wt in enumerate(("unweighted", "weighted")):
-                ok = e_t is not None and own[s] is not None
-                d, cov = change(e_t[wi], own[s][wi]) if ok else (None, None)
+                d, cov = change(e_t[wi], own[s][wi])
                 for k, m in enumerate(METRICS):
-                    se = float(np.sqrt(cov[k, k])) if ok else np.nan
-                    geo_rows.append(dict(source=s, target=t, weighting=wt, metric=m,
-                                         delta=d[m] if ok else np.nan, se=se,
-                                         abs_corrected=noise_corrected_abs(d[m], se) if ok else np.nan,
-                                         computable=ok))
+                    se = float(np.sqrt(cov[k, k]))
+                    ok = bool(np.isfinite(d[m]) and np.isfinite(se))
+                    geo_rows.append(dict(source=s, target=t, weighting=wt, metric=m, delta=d[m], se=se,
+                                         abs_corrected=noise_corrected_abs(d[m], se), computable=ok))
     geo = pd.DataFrame(geo_rows)
     counts = geo.groupby(["weighting", "metric"]).size()
     assert (counts == len(states) * (len(states) - 1)).all() and len(counts) == 2 * len(METRICS), counts
     geo.to_csv(OUT / "geographic_pairs_2014.csv", index=False)
-    margins["geographic_pairs_not_computable"] = int((~geo["computable"]).sum() // (2 * len(METRICS)))
+    margins["geographic_pairs_not_computable"] = {
+        f"{wt}|{m}": int((~geo[(geo.weighting == wt) & (geo.metric == m)]["computable"]).sum())
+        for wt in ("unweighted", "weighted") for m in METRICS}
     for wt in ("unweighted", "weighted"):
         g = geo[geo.weighting == wt].groupby("metric")["abs_corrected"].median()
         margins[wt]["G"] = {m: float(g[m]) for m in METRICS}
@@ -153,17 +145,20 @@ def main():
                 geo[(geo.weighting == wt) & (geo.metric == m)].groupby("source")["abs_corrected"].median().items()}
             for m in ("dp_race", "eo_race", "dp_sex", "accuracy")}
     margins["states"] = states
+    margins["provenance"] = provenance()
 
     # ---- recoding artefact at 2018 (raw codes vs harmonised), seed 0 ----
     rec = {}
     for y in YEARS:
         eu_raw, eu_h = est[("rawgbm_s0", y)][0], est[("gbm_s0", y)][0]
         rec[str(y)] = {m: {"raw": eu_raw.values[m], "harmonised": eu_h.values[m]} for m in METRICS}
+    rec["_provenance"] = provenance()
     (OUT / "recoding_check.json").write_text(json.dumps(rec, indent=1))
     (OUT / "margins.json").write_text(json.dumps(margins, indent=1))
     # estimates of every US model-year (values and covariance), reused by Stage B for the baseline
-    store = {f"{n}|{y}|{wt}": {"values": e.values, "cov": e.cov.tolist(), "n": e.n}
+    store = {f"{n}|{y}|{wt}": {"values": e.values, "cov": e.cov.tolist(), "n": e.n, "invalid": e.invalid}
              for (n, y), pair in est.items() for wt, e in zip(("unweighted", "weighted"), pair)}
+    store["_provenance"] = margins["provenance"]
     (OUT / "estimates_2014_2018.json").write_text(json.dumps(store))
 
     # ---- console summary ----

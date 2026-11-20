@@ -8,24 +8,27 @@ Enforced by `scripts/check_outputs.py stage_a|stage_b` (exits non-zero on any mi
 |---|---|---|
 | 3 | Harmonisation report; destination set equals the crosswalk-derived set; group-wise 2018 deviations | `results/harmonisation/report_2014_2018.json`, `occp_group_shares.csv`, `occp_group_jumps_by_group.csv` |
 | 3 | Mapping provenance | `docs/harmonisation_provenance.md` |
-| 4 | Exact model inventory (88 models) with hashes and mapping fingerprints | `results/models_manifest.json` |
-| 4, 10 | Inventory check passed for 2014–2018 | `results/inventory_check.json` |
+| 4 | Exact model inventory (98 models) with hashes and fit-specification hashes | `results/models_manifest.json` |
+| 4, 10 | Inventory check passes now (re-run by the checker) and its record | `results/inventory_check.json` |
+| 10 | Every result file below carries a provenance block matching the current manifest, prediction specification and code | (checked by `scripts/check_outputs.py`) |
 | 6 | δ, ε, ε_EO, G, G by source state, baseline means, per-seed post-processed DP, 20 states | `results/stage_a/margins.json` |
 | 6 | 380 ordered state pairs per metric and weighting | `results/stage_a/geographic_pairs_2014.csv` |
 | 5, 7 | Stored 2014–2018 estimates with covariances (all US models) | `results/stage_a/estimates_2014_2018.json` |
-| 7.1 | Split-variance multipliers | `results/validation/split_variance.json` |
-| 7.6 | Operating characteristics of C1–C6 and C7 coverage | `results/validation/inference_validation.json` |
+| 7.1 | Split-variance calibration: 15 configurations, multipliers | `results/validation/split_variance.json` |
+| 7.6 | Operating characteristics of C1–C6, C7 coverage, joint simulation, acceptance criteria passed | `results/validation/inference_validation.json` |
 | 8.4 | Decomposition check 2014 → 2018 with diagnostics and reliability | `results/stage_a/decomposition_2018_check.json` |
 | 8.7 | Raw versus harmonised, 2014–2018 | `results/stage_a/recoding_check.json` |
-| 10 | Integrity tests (tampering, stale artifacts, failing workers) | `results/validation/integrity_tests.json` |
+| 10 | Integrity tests (tampering, stale artifacts, person swap within a household, failing workers) | `results/validation/integrity_tests.json` |
+| 10 | Estimator and decision-rule tests (synthetic) | `results/validation/analysis_tests.json` |
+| 10 | Download integrity tests (synthetic) | `results/validation/fetch_tests.json` |
 | Reconstruction | 56-run inventory, comparison, figure, macros | `results/reconstruction/runs.jsonl`, `comparison.csv`, `paper/figures/reconstruction.pdf`, `paper/numbers_reconstruction.tex` |
 
 ## Archive (between the stages)
 
 | Item | File |
 |---|---|
-| Zenodo DOI, Software Heritage ID, SHA-256 of every deposited file | `prereg/ARCHIVE_RECEIPT.json` |
-| Guard flag, created only after the receipt is verified | `prereg/ARCHIVED` |
+| Zenodo DOI, Software Heritage ID, SHA-256 and MD5 of every deposited file, SHA-256 of the package contents | `prereg/ARCHIVE_RECEIPT.json` |
+| Guard flag, created by `scripts/verify_archive.py --create-flag` only after the receipt is verified against the local files and the public Zenodo record | `prereg/ARCHIVED` |
 
 ## Stage B (after archiving)
 
@@ -33,5 +36,6 @@ Enforced by `scripts/check_outputs.py stage_a|stage_b` (exits non-zero on any mi
 |---|---|---|
 | 5, 7 | C1–C8, unweighted and weighted: estimates, intervals, decisions; per-seed diagnostics; margin curves (C1–C6); C7 raw changes; C8 per-state detail; weighting-sensitive list | `results/stage_b/confirmatory.json` |
 | 8.1 | Trajectories, all US models, all years, `>` and `>=` | `results/stage_b/trajectories.csv` |
-| 8.2, 8.4–8.6, 8.8, 8.9 | Secondary analyses | `results/stage_b/secondary.json` |
+| 8.2, 8.4–8.6, 8.8–8.10 | Secondary analyses (P1 with and without place of birth) | `results/stage_b/secondary.json` |
+| 7.1 | The same estimate agrees across output tables (gbm_s0, 2014) | (checked by `scripts/check_outputs.py`) |
 | 8.3 | Label definitions | `results/stage_b/secondary_labels.csv` |

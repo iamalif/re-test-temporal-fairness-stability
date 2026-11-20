@@ -64,9 +64,13 @@ def derive_destinations(edges):
             continue
         gs = {g18.get(b) for b in bs}
         if None in gs:
-            unresolved.append((a, sorted(b for b in bs if g18.get(b) is None)))
-        gs.discard(None)
-        if not gs or gs == {g10[a]}:
+            # a destination without a PUMS code cannot be assigned a group, so the move cannot be shown to be whole:
+            # such a code is never moved (kept in its own group) and is listed for audit
+            unresolved.append({"code_2010": a, "own_group": g10[a],
+                               "unresolved_destinations": sorted(b for b in bs if g18.get(b) is None),
+                               "resolved_groups": sorted(g for g in gs if g)})
+            continue
+        if gs == {g10[a]}:
             continue
         if len(gs) == 1:
             whole[a] = gs.pop()
@@ -95,7 +99,7 @@ def main():
     rep = {"years": {}, "occp_crosswalk": {
         "edges": len(edges), "whole_cross_group_moves": {str(k): v for k, v in whole.items()},
         "split_codes_with_cross_group_destination": split,
-        "edges_to_codes_not_in_pums_dictionary": unresolved,
+        "codes_with_unresolved_destinations_kept_in_own_group": unresolved,
         "destination_group_matches_crosswalk": True}}
     cross_any = set(whole) | {s["code_2010"] for s in split}
     groups = {"all": None, "white": ("RAC1P", WHITE), "black": ("RAC1P", BLACK), "male": ("SEX", 1),

@@ -24,5 +24,9 @@ variable-change notes (`data/raw/variable_changes/`). Hashes of all files: `logs
 | Missing values | → 0, as folktables | all | folktables issue #39 (`np.nan_to_num(x, -1)` passes −1 as `copy`) | reproduces the benchmark | — |
 
 Note on D023: an earlier version also assigned five split codes (2160, 2900, 3540, 4320, 9520) to a destination
-group outside their own, contrary to the stated rule; 0.33% of 2014 rows. Corrected before archiving; all affected
-models were refitted.
+group outside their own, contrary to the stated rule; 0.33% of 2014 rows. Corrected before archiving; every model
+trained on harmonised features is refitted in the Stage A rerun (pending at the time of writing; see the decision
+log for completion).
+
+Codes with a crosswalk destination that has no PUMS code (430, 3060, 3730, 9520) cannot be shown to move whole and
+are kept in their own group; they are listed in `results/harmonisation/report_2014_2018.json`.

@@ -9,6 +9,7 @@ Secondary analyses are outside the family-wise error control; intervals are 95% 
   8.6 per-year-scaling pipeline: the frozen peryear_gbm models (each year standardised with its own scaler)
   8.8 per-state DP-post-processed models: |DP| in the own state later vs in other states in 2014
   8.9 models deployed in 2018 instead of 2014: change from 2018 to each later year, with SEs
+  8.10 sensitivity without race as a feature: the C2, C4 and C6 rules on the frozen no-race models
 Writes results/stage_b/secondary.json and secondary_labels.csv.  Usage: python scripts/stage_b_secondary.py [--skip-p1]
 """
 import argparse
@@ -26,9 +27,9 @@ from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import StratifiedGroupKFold
 
-from analysis import METRICS, Estimate, change, household_ids, inflate, point, split_multiplier, three_way, unweighted
+from analysis import METRICS, NotComputable, change, estimates, household_ids, point, three_way
 from common import BLACK, WHITE, load_year, state_split
-from pipeline import SEEDS, SMOKE, design, load_pred, year_frame
+from pipeline import SEEDS, SMOKE, design, load_pred, provenance, verify_inventory, year_frame
 
 ALPHA = 0.05                       # secondary: per-analysis level, no family-wise claim
 Y_RACE, Y_SEX = 2019, 2024
@@ -39,8 +40,13 @@ if SMOKE:
     Y_RACE, Y_SEX, YEARS = 2017, 2018, (2014, 2015, 2016, 2017, 2018)
     OUT, STAGE_A = ROOT / "data" / "derived" / "smoke_stage_b", ROOT / "data" / "derived" / "smoke_stage_a"
 CHECK_TOL = 0.005                  # DP falsification check of the decomposition
-SMD_TOL = 0.05                     # balance: max |standardised mean difference| after reweighting, per group (D024)
-CLIP_TOL = 0.005                   # clipping sensitivity: |residual(no clip) - residual(99.9%)| for accuracy
+BAL_BASE, BAL_K = 0.02, 3.0        # balance after reweighting, per group (D026): the largest SMD over quantitative
+                                   # features and indicators of categories with pooled share >= 1% must not exceed
+                                   # BAL_BASE + BAL_K * sqrt(1/ESS_group + 1/n_target_group) (sampling-noise allowance)
+CAT_MIN_SHARE = 0.01
+QUANT_FEATURES = ("AGEP", "WKHP")  # every other harmonised feature is a nominal or ordinal category code
+CLIP_TOL = 0.005                   # clipping sensitivity: |residual(no clip) - residual(99.9%)|, P2 metrics
+P2_METRICS = ("accuracy", "eo_race", "eo_sex")
 CLIPS = {"q999": 0.999, "q99": 0.99, "none": None}
 BASE_RATE_GRID = (20000, 150000, 1000)   # base-rate anchoring: search grid (inclusive), $1000 steps
 
@@ -105,8 +111,16 @@ def dp_race_of(pred, df):
     return float(pred[w].mean() - pred[b].mean()) if w.any() and b.any() else float("nan")
 
 
-def est_u(pred, y, df):
-    return Estimate.from_unweighted(unweighted(pred, y, df), household_ids(df))
+def est_u(pred, y, df, split=False):
+    """Unweighted estimate from the central builder (split multipliers on training-year test splits)."""
+    return estimates(pred, y, df, split=split, apply_split_multiplier=not SMOKE, with_weighted=False)[0]
+
+
+def three_way_or_nc(*args, **kw):
+    try:
+        return three_way(*args, **kw)
+    except NotComputable as e:
+        return {"decision": "not computable", "reason": str(e)}
 
 
 # ---------------- 8.4 decomposition ----------------
@@ -140,14 +154,40 @@ def dfl_weights(X0, X1, g0, g1, seed=0):
     return odds_weights(p, len(X0), len(X1), 0.999)[0], float(roc_auc_score(d, p))
 
 
-def max_smd(X0, w, X1, mask0, mask1):
-    """Largest |standardised mean difference| over features between reweighted sample 0 and sample 1 in a group."""
+def balance(X0, w, X1, mask0, mask1) -> dict:
+    """Balance between reweighted sample 0 and sample 1 within a group (QA 2, A4). Category codes are not treated as
+    numbers: for each categorical feature, every category with pooled share >= 1% gets the standardised difference
+    of its share, |p0 - p1| / sqrt(p(1 - p)); quantitative features (age, hours) get the usual SMD. Also reports the
+    total-variation distance of each categorical feature (all categories). Features constant in both samples within
+    the group (e.g. race within a race group) are skipped."""
+    from harmonise import HARMONISED_FEATURES
     a, b = X0[mask0], X1[mask1]
-    wa = w[mask0]
-    m0, m1 = np.average(a, axis=0, weights=wa), b.mean(0)
-    sd = np.sqrt((a.var(0) + b.var(0)) / 2)
-    ok = sd > 0
-    return float(np.max(np.abs(m0[ok] - m1[ok]) / sd[ok]))
+    wa = w[mask0] / w[mask0].sum()
+    worst, where, tvd = 0.0, None, {}
+    for j, f in enumerate(HARMONISED_FEATURES):
+        x0, x1 = a[:, j], b[:, j]
+        if f in QUANT_FEATURES:
+            sd = np.sqrt((x0.var() + x1.var()) / 2)
+            if sd > 0:
+                v = abs(float(np.dot(wa, x0) - x1.mean())) / sd
+                if v > worst:
+                    worst, where = v, f
+            continue
+        cats = np.union1d(np.unique(x0), np.unique(x1))
+        p0 = np.array([wa[x0 == c].sum() for c in cats])
+        p1 = np.array([(x1 == c).mean() for c in cats])
+        tvd[f] = float(np.abs(p0 - p1).sum() / 2)
+        pp = (p0 + p1) / 2
+        ok = (pp >= CAT_MIN_SHARE) & (pp * (1 - pp) > 0)
+        if ok.any():
+            v = np.abs(p0 - p1)[ok] / np.sqrt(pp[ok] * (1 - pp[ok]))
+            i = int(np.argmax(v))
+            if v[i] > worst:
+                worst, where = float(v[i]), f"{f}={cats[ok][i]:g}"
+    ess = float(w[mask0].sum() ** 2 / (w[mask0] ** 2).sum())
+    limit = BAL_BASE + BAL_K * np.sqrt(1 / ess + 1 / max(int(mask1.sum()), 1))
+    return {"max_smd": float(worst), "worst": where, "tvd": tvd, "ess": ess, "n_target": int(mask1.sum()),
+            "limit": float(limit), "passes": bool(worst <= limit)}
 
 
 _DOMAIN_CACHE: dict = {}
@@ -183,20 +223,21 @@ def decompose(name, seed, year, frames, thr, label_key="nominal"):
                     "max_weight_over_mean": float(w.max() / w.mean()),
                     "share_2014_p_below_0.01": float((p[:len(X0)] < 0.01).mean()),
                     "share_target_p_above_0.99": float((p[len(X0):] > 0.99).mean()),
-                    "max_smd_by_group": {g: max_smd(X0, w, X1, a, b) for g, (a, b) in groups.items()},
-                    "max_smd_by_group_before_reweighting": {g: max_smd(X0, np.ones(len(X0)), X1, a, b)
+                    "balance_by_group": {g: balance(X0, w, X1, a, b) for g, (a, b) in groups.items()},
+                    "balance_by_group_before_reweighting": {g: balance(X0, np.ones(len(X0)), X1, a, b)
                                                             for g, (a, b) in groups.items()},
-                    "max_smd_all": max_smd(X0, w, X1, np.ones(len(X0), bool), np.ones(len(X1), bool))}
+                    "balance_all": balance(X0, w, X1, np.ones(len(X0), bool), np.ones(len(X1), bool))}
     prim = by_clip["q999"]
     dp_check = {g: {"residual": prim["residual"][f"dp_{g}"], "passes": abs(prim["residual"][f"dp_{g}"]) <= CHECK_TOL}
                 for g in ("race", "sex")}
-    clip_shift = abs(by_clip["none"]["residual"]["accuracy"] - prim["residual"]["accuracy"])
+    clip_shift = {m: abs(by_clip["none"]["residual"][m] - prim["residual"][m]) for m in P2_METRICS}
     reliable = (all(v["passes"] for v in dp_check.values())
-                and max(diag["max_smd_by_group"].values()) <= SMD_TOL and clip_shift <= CLIP_TOL)
+                and all(v["passes"] for v in diag["balance_by_group"].values())
+                and all(np.isfinite(v) and v <= CLIP_TOL for v in clip_shift.values()))
     return {"model": name, "year": year, "label": label_key, "auc_2014_vs_year": auc, "m2014": m0, "m_year": m1,
             "counterfactual": prim["counterfactual"], "composition": prim["composition"],
             "residual": prim["residual"], "by_clipping": by_clip, "diagnostics": diag,
-            "dp_check": dp_check, "clip_sensitivity_accuracy": clip_shift, "reliable": bool(reliable),
+            "dp_check": dp_check, "clip_sensitivity": clip_shift, "reliable": bool(reliable),
             "interpretation": ("residual = conditional change plus approximation error" if reliable else
                                "unreliable: composition/residual split not interpreted; P2 suppressed")}
 
@@ -243,11 +284,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--skip-p1", action="store_true")
     a = ap.parse_args()
+    verify_inventory(YEARS)                 # preflight: models, hashes, prediction provenance
     OUT.mkdir(parents=True, exist_ok=True)
     margins = json.loads((STAGE_A / "margins.json").read_text())
     frames = {y: frame(y) for y in YEARS}
     thr = thresholds(frames)
-    res = {"alpha": ALPHA, "thresholds": thr}
+    res = {"alpha": ALPHA, "thresholds": thr, "provenance": provenance()}
 
     # 8.2 other interventions: envelope rule as C3, each with its own 2014-2018 envelope
     band = {}
@@ -260,13 +302,13 @@ def main():
         eps = max(max(abs(v) for v in vals), margins["floor"])
         f = frames[Y_RACE]
         e = est_u(load_pred(name, Y_RACE, f), labels_for(f, Y_RACE, thr)["nominal"], f)
-        band[name] = three_way(e.values["dp_race"], e.se("dp_race"), eps, ALPHA) | {"dp_2014_2018": vals}
+        band[name] = three_way_or_nc(e.values["dp_race"], e.se("dp_race"), eps, ALPHA) | {"dp_2014_2018": vals}
     for g, yr in (("race", Y_RACE), ("sex", Y_SEX)):
         f = frames[yr]; yy = labels_for(f, yr, thr)["nominal"]; vals, ses = [], []
         for sd in SEEDS:
             e = est_u(load_pred(f"post_eo_{g}_s{sd}", yr, f), yy, f)
             vals.append(e.values[f"eo_{g}"]); ses.append(e.se(f"eo_{g}"))
-        band[f"post_eo_{g}"] = three_way(float(np.mean(vals)), float(np.mean(ses)),
+        band[f"post_eo_{g}"] = three_way_or_nc(float(np.mean(vals)), float(np.mean(ses)),
                                          margins["unweighted"]["epsilon_eo"][g], ALPHA) | {
                                              "year": yr, "per_seed": vals}
     res["8.2_other_interventions"] = band
@@ -279,7 +321,7 @@ def main():
                      "expgrad_dp_race_s0", "lfr_race_s0"):
             r = rows_for(y, 0, f); sub = f[r].reset_index(drop=True); pred = load_pred(name, y, f)[r]
             for lk, yy in labels_for(sub, y, thr).items():
-                e = est_u(pred, yy, sub)
+                e = est_u(pred, yy, sub, split=(y == 2014))
                 for m in METRICS:
                     rows.append(dict(model=name, year=y, label=lk, metric=m, value=e.values[m], se=e.se(m)))
     pd.DataFrame(rows).to_csv(OUT / "secondary_labels.csv", index=False)
@@ -306,7 +348,7 @@ def main():
             for sd in SEEDS:
                 r = rows_for(y, sd, f)
                 ests.append(est_u(load_pred(f"{fam}_s{sd}", y, f)[r], labels_for(f[r], y, thr)["nominal"],
-                                  f[r].reset_index(drop=True)))
+                                  f[r].reset_index(drop=True), split=(y == 2014)))
             per[fam] = {m: {"value": float(np.mean([e.values[m] for e in ests])),
                             "se": float(np.mean([e.se(m) for e in ests]))} for m in METRICS}
         view[str(y)] = per
@@ -342,9 +384,8 @@ def main():
         e18 = []
         for sd in SEEDS:
             r18 = state_split(f18, sd)
-            e = est_u(load_pred(f"{fam}_s{sd}", 2018, f18)[r18], labels_for(f18[r18], 2018, thr)["nominal"],
-                      f18[r18].reset_index(drop=True))
-            e18.append(e if SMOKE else inflate(e, split_multiplier("unweighted")))   # 20% split (prereg 7.3)
+            e18.append(est_u(load_pred(f"{fam}_s{sd}", 2018, f18)[r18], labels_for(f18[r18], 2018, thr)["nominal"],
+                             f18[r18].reset_index(drop=True), split=True))
         dep[fam] = {"2018": {m: float(np.mean([e.values[m] for e in e18])) for m in METRICS}}
         for y in later:
             f = frames[y]
@@ -355,6 +396,33 @@ def main():
                                     "se": float(np.mean([np.sqrt(c[1][k, k]) for c in ch]))}
                                 for k, m in enumerate(METRICS)}
     res["8.9_deployment_2018"] = dep
+
+    # 8.10 sensitivity without race as a feature (sex endpoints; race coding changed in 2020): the C2, C4 and C6
+    # rules applied to the frozen no-race models, with calibration constants from their own 2014-2018 estimates
+    stored = json.loads((STAGE_A / "estimates_2014_2018.json").read_text())
+    base_years = (2014, 2015, 2016, 2017, 2018)
+    f = frames[Y_SEX]
+    ysex = labels_for(f, Y_SEX, thr)["nominal"]
+    nr = {}
+    for key, fam, metric, kind in (("C2_norace", "norace_gbm", "dp_sex", "dev"),
+                                   ("C4_norace", "norace_post_dp_sex", "dp_sex", "env"),
+                                   ("C6_norace", "norace_gbm", "eo_sex", "dev")):
+        k = METRICS.index(metric)
+        hist = np.array([[stored[f"{fam}_s{sd}|{y}|unweighted"]["values"][metric] for y in base_years] for sd in SEEDS])
+        hvar = np.array([[stored[f"{fam}_s{sd}|{y}|unweighted"]["cov"][k][k] for y in base_years] for sd in SEEDS])
+        traj = hist.mean(0)
+        ests = [est_u(load_pred(f"{fam}_s{sd}", Y_SEX, f), ysex, f) for sd in SEEDS]
+        if kind == "dev":
+            margin = max(float(np.max(np.abs(traj - traj.mean()))), margins["floor"])
+            vals = [e.values[metric] - hist[i].mean() for i, e in enumerate(ests)]
+            ses = [np.sqrt(e.cov[k, k] + hvar[i].sum() / 25) for i, e in enumerate(ests)]
+        else:
+            margin = max(float(np.max(np.abs(traj))), margins["floor"])
+            vals = [e.values[metric] for e in ests]
+            ses = [e.se(metric) for e in ests]
+        nr[key] = three_way_or_nc(float(np.mean(vals)), float(np.mean(ses)), margin, ALPHA) | {
+            "per_seed": vals, "calibration_constant": margin}
+    res["8.10_without_race"] = nr
 
     if not a.skip_p1:
         res["8.5_P1"] = p1_auc(frames, margins["states"], Y_RACE)
