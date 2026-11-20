@@ -1,0 +1,53 @@
+{
+ "baseline_commit": "ebf359f7ad90aeedd5bf1a425388a868203e47fe",
+ "ignored_keys": [
+  "_provenance",
+  "_script_sha256",
+  "code_sha256",
+  "provenance",
+  "time"
+ ],
+ "files": {
+  "results/stage_a/margins.json": {
+   "identical_scientific_content": true,
+   "differences": []
+  },
+  "results/stage_a/estimates_2014_2018.json": {
+   "identical_scientific_content": true,
+   "differences": []
+  },
+  "results/stage_a/recoding_check.json": {
+   "identical_scientific_content": true,
+   "differences": []
+  },
+  "results/stage_a/decomposition_2018_check.json": {
+   "identical_scientific_content": true,
+   "differences": []
+  },
+  "results/stage_a/geographic_pairs_2014.csv": {
+   "identical_scientific_content": true,
+   "differences": []
+  },
+  "results/stage_a/metrics_us_2014_2018.csv": {
+   "identical_scientific_content": true,
+   "differences": []
+  },
+  "results/validation/split_variance.json": {
+   "identical_scientific_content": true,
+   "differences": []
+  },
+  "results/validation/inference_validation.json": {
+   "identical_scientific_content": true,
+   "differences": []
+  },
+  "results/validation/integrity_tests.json": {
+   "identical_scientific_content": true,
+   "differences": []
+  },
+  "results/inventory_check.json": {
+   "identical_scientific_content": true,
+   "differences": []
+  }
+ },
+ "all_identical": true
+}

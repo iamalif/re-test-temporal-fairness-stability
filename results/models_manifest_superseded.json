@@ -24,6 +24,45 @@
    "pooled_to": 1
   }
  },
+ "expgrad_dp_race_s0@3e1c0f7efc00": {
+  "name": "expgrad_dp_race_s0",
+  "file": "expgrad_dp_race_s0.joblib",
+  "sha256": "3e1c0f7efc00eae97fd12cc5e7992da99cdbc612b2e953b9f2676380d45f8008",
+  "fit_seconds": 18533.1,
+  "n_train": 1270284,
+  "kind": "expgrad",
+  "features": "harmonised",
+  "group": "race",
+  "seed": 0,
+  "kept_categories": {
+   "keep": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+   ],
+   "pooled_to": 1
+  },
+  "train_year": 2014,
+  "mapping_sha256": "d3fa21633ce6b70d2fe8a3893fe75933925bd2357ed9da2618eb4ed3d844f8e3",
+  "scaling": "frozen",
+  "fit_spec_sha256": "6a80339fa5f0e72b164db9800ee6cf0eb706cdc0845a5872505e8e0ba27f155c",
+  "versions": {
+   "numpy": "2.5.5",
+   "pandas": "3.1.1",
+   "scipy": "1.17.1",
+   "sklearn": "1.9.1",
+   "fairlearn": "0.15.0",
+   "aif360": "0.6.1"
+  },
+  "superseded_by": "inference-only export (D033)",
+  "kept_as": "data/derived/models_superseded/expgrad_dp_race_s0.3e1c0f7efc00.joblib"
+ },
  "gbm_s0@ae447794102c": {
   "name": "gbm_s0",
   "file": "gbm_s0.joblib",

@@ -1,0 +1,179 @@
+wrote archive/package.zip (36 members, 0 MB) from commit 010c7b6916355d177326c892ca1a91ac0ca05b19; receipt draft written to prereg/ARCHIVE_RECEIPT.json
+wrote archive/package.zip (36 members, 0 MB) from commit 010c7b6916355d177326c892ca1a91ac0ca05b19; receipt draft written to prereg/ARCHIVE_RECEIPT.json
+wrote archive/package.zip (36 members, 0 MB) from commit 0500545cf564d2bb5505644f032c4132fc5b0bf1; receipt draft written to prereg/ARCHIVE_RECEIPT.json
+wrote archive/package.zip (36 members, 0 MB) from commit 0500545cf564d2bb5505644f032c4132fc5b0bf1; receipt draft written to prereg/ARCHIVE_RECEIPT.json
+wrote archive/package.zip (36 members, 0 MB) from commit 0500545cf564d2bb5505644f032c4132fc5b0bf1; receipt draft written to prereg/ARCHIVE_RECEIPT.json
+wrote archive/package.zip (36 members, 0 MB) from commit be345c4e15b7fd139c7b19497bef8cc0b84c8bbb; receipt draft written to prereg/ARCHIVE_RECEIPT.json
+wrote archive/package.zip (36 members, 0 MB) from commit be345c4e15b7fd139c7b19497bef8cc0b84c8bbb; receipt draft written to prereg/ARCHIVE_RECEIPT.json
+wrote archive/package.zip (36 members, 0 MB) from commit 134d112ab04dc638979c305778414903a2e88173; receipt draft written to prereg/ARCHIVE_RECEIPT.json
+wrote archive/package.zip (36 members, 0 MB) from commit 134d112ab04dc638979c305778414903a2e88173; receipt draft written to prereg/ARCHIVE_RECEIPT.json
+wrote archive/package.zip (36 members, 0 MB) from commit 134d112ab04dc638979c305778414903a2e88173; receipt draft written to prereg/ARCHIVE_RECEIPT.json
+wrote archive/package.zip (36 members, 0 MB) from commit 4239af10cd81375ff3661206c49dda5fb63855cf; receipt draft written to prereg/ARCHIVE_RECEIPT.json
+wrote archive/package.zip (36 members, 0 MB) from commit 4239af10cd81375ff3661206c49dda5fb63855cf; receipt draft written to prereg/ARCHIVE_RECEIPT.json
+wrote archive/package.zip (36 members, 0 MB) from commit 88112661eb28daab1d9dbd197c76d83919e05709; receipt draft written to prereg/ARCHIVE_RECEIPT.json
+wrote archive/package.zip (36 members, 0 MB) from commit 88112661eb28daab1d9dbd197c76d83919e05709; receipt draft written to prereg/ARCHIVE_RECEIPT.json
+wrote archive/package.zip (36 members, 0 MB) from commit 9c3b411bfba059f69d11928f45d7416c1d8fb685; receipt draft written to prereg/ARCHIVE_RECEIPT.json
+wrote archive/package.zip (36 members, 0 MB) from commit 9c3b411bfba059f69d11928f45d7416c1d8fb685; receipt draft written to prereg/ARCHIVE_RECEIPT.json
+wrote archive/package.zip (36 members, 0 MB) from commit 9c3b411bfba059f69d11928f45d7416c1d8fb685; receipt draft written to prereg/ARCHIVE_RECEIPT.json
+wrote archive/package.zip (36 members, 0 MB) from commit 0aadecf59bbb66ca9634ee79cb2bc9f5480b6495; receipt draft written to prereg/ARCHIVE_RECEIPT.json
+wrote archive/package.zip (36 members, 0 MB) from commit 0aadecf59bbb66ca9634ee79cb2bc9f5480b6495; receipt draft written to prereg/ARCHIVE_RECEIPT.json
+wrote archive/package.zip (36 members, 0 MB) from commit 0aadecf59bbb66ca9634ee79cb2bc9f5480b6495; receipt draft written to prereg/ARCHIVE_RECEIPT.json
+wrote archive/package.zip (36 members, 0 MB) from commit 64345391859965a2f0f23335edde93a89d190b93; receipt draft written to prereg/ARCHIVE_RECEIPT.json
+complete package passes                                                  ok  []
+package without the pre-registration fails                               ok  ['package lacks prereg/PREREGISTRATION.md']
+model file differing from its manifest hash fails                        ok  ['data/derived/models/m.joblib: packaged bytes differ from the archived model']
+wrong Zenodo checksum fails                                              ok  ['Zenodo checksum or size differs from the receipt']
+Zenodo record with an extra file fails                                   ok  ["Zenodo record lists ['other.txt', 'package.zip'], expected exactly package.zip"]
+missing Software Heritage check date fails                               ok  ['date of the manual Software Heritage check missing (YYYY-MM-DD)']
+local committed file changed after build fails                           ok  ['tracked files differ from the archived commit']
+local shell script changed after build fails                             ok  ['tracked files differ from the archived commit']
+package without a shell script fails                                     ok  ['package lacks scripts/run_all.sh']
+untracked file is left out and the package passes                        ok  []
+build with an uncommitted tracked change is refused                      ok  ['build refused: refusing to build: tracked files have uncommitted changes:']
+identifier of another commit fails                                       ok  ['Software Heritage identifier must be the revision of the archived commit (swh:1:rev:4239af10cd81375ff3661206c49dda5fb63855cf)']
+directory identifier instead of revision fails                           ok  ['Software Heritage identifier must be the revision of the archived commit (swh:1:rev:4239af10cd81375ff3661206c49dda5fb63855cf)']
+receipt naming a non-existent commit with a matching identifier fails    ok  ['commit 1111111111111111111111111111111111111111 does not exist in this repository']
+receipt without the commit fails                                         ok  ['the receipt must name the archived commit (40-character git_commit)']
+tracked file deleted and committed after build fails                     ok  ['checkout is not at the archived commit 9c3b411bfba059f69d11928f45d7416c1d8fb685']
+unexpected extra package member fails (receipt and record matching)      ok  ['unexpected package member notes/extra.txt']
+duplicate package member fails                                           ok  ['cannot read package or archived commit: duplicate member in package: src/a.py']
+unlisted file in a reference folder is left out and the package passes   ok  []
+reference input changed locally after build fails                        ok  ['data/raw/cpi/cpi.xlsx: local file missing or differs from the archived reference']
+model file changed locally after build fails                             ok  ['data/derived/models/m.joblib: local file missing or differs from the archived model']
+build with a reference input differing from its frozen hash is refused   ok  ['build refused: refusing to build: data/raw/cpi/cpi.xlsx is missing or differs from its frozen hash']
+build with a model differing from its manifest hash is refused           ok  ['build refused: refusing to build: data/derived/models/m.joblib is missing or differs from its frozen hash']
+unpublished Zenodo record fails                                          ok  ['Zenodo record is not published']
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'inFairness': SenSeI and SenSR will be unavailable. To install, run:
+pip install 'aif360[inFairness]'
+audited 98 models; 1 hold training caches: ['expgrad_dp_race_s0']
+expgrad_dp_race_s0 2014: predictions identical (23s)
+expgrad_dp_race_s0 2015: predictions identical (23s)
+expgrad_dp_race_s0 2016: predictions identical (23s)
+expgrad_dp_race_s0 2017: predictions identical (24s)
+expgrad_dp_race_s0 2018: predictions identical (25s)
+exported ['expgrad_dp_race_s0']; all predictions identical; record written to results/validation/inference_only_export.json
+inventory check passed for [2014, 2015, 2016, 2017, 2018]
+unweighted {'accuracy': np.float64(1.176), 'dp_race': np.float64(1.163), 'eo_race': np.float64(1.246), 'dp_sex': np.float64(1.26), 'eo_sex': np.float64(1.214)}
+weighted {'accuracy': np.float64(1.189), 'dp_race': np.float64(1.308), 'eo_race': np.float64(1.306), 'dp_sex': np.float64(1.204), 'eo_sex': np.float64(1.203)}
+year                           2014    2015    2016    2017    2018
+model              metric                                          
+expgrad_dp_race_s0 accuracy  0.8101  0.8033  0.8004  0.7955  0.7904
+                   dp_race   0.0109  0.0086  0.0117  0.0112  0.0080
+                   dp_sex    0.1807  0.1791  0.1789  0.1765  0.1767
+                   eo_race  -0.0879 -0.0923 -0.0876 -0.0907 -0.0855
+                   eo_sex    0.1498  0.1505  0.1507  0.1472  0.1474
+gbm_s0             accuracy  0.8190  0.8126  0.8103  0.8059  0.8012
+                   dp_race   0.1548  0.1542  0.1565  0.1586  0.1562
+                   dp_sex    0.1842  0.1826  0.1808  0.1781  0.1781
+                   eo_race   0.1654  0.1642  0.1650  0.1658  0.1657
+                   eo_sex    0.1472  0.1487  0.1484  0.1445  0.1435
+lfr_race_s0        accuracy  0.7852  0.7796  0.7760  0.7707  0.7655
+                   dp_race   0.0841  0.0817  0.0819  0.0824  0.0798
+                   dp_sex    0.1949  0.1909  0.1896  0.1885  0.1881
+                   eo_race   0.0590  0.0524  0.0536  0.0517  0.0548
+                   eo_sex    0.1977  0.1940  0.1936  0.1909  0.1884
+post_dp_race_s0    accuracy  0.8098  0.8032  0.8004  0.7958  0.7910
+                   dp_race   0.0000 -0.0020  0.0004 -0.0005 -0.0035
+                   dp_sex    0.1838  0.1819  0.1817  0.1793  0.1794
+                   eo_race  -0.1045 -0.1061 -0.1011 -0.1053 -0.1010
+                   eo_sex    0.1511  0.1501  0.1507  0.1475  0.1476
+post_dp_sex_s0     accuracy  0.8079  0.8003  0.7977  0.7928  0.7867
+                   dp_race   0.1290  0.1258  0.1299  0.1319  0.1296
+                   dp_sex    0.0001 -0.0038 -0.0060 -0.0093 -0.0118
+                   eo_race   0.1279  0.1176  0.1195  0.1247  0.1246
+                   eo_sex   -0.1491 -0.1487 -0.1487 -0.1517 -0.1541
+rawgbm_s0          accuracy  0.8239  0.8178  0.8158  0.8115  0.8067
+                   dp_race   0.1521  0.1522  0.1553  0.1571  0.1541
+                   dp_sex    0.1787  0.1769  0.1757  0.1738  0.1754
+                   eo_race   0.1598  0.1554  0.1589  0.1601  0.1560
+                   eo_sex    0.1360  0.1357  0.1358  0.1334  0.1349
+
+[unweighted] delta: {'accuracy': 0.01, 'dp_race': 0.01, 'eo_race': 0.01, 'dp_sex': 0.01, 'eo_sex': 0.01} 
+  raw max deviation from baseline: {'accuracy': 0.0086, 'dp_race': 0.0024, 'eo_race': 0.0014, 'dp_sex': 0.0044, 'eo_sex': 0.0034} 
+  max change from 2014: {'accuracy': np.float64(0.017), 'dp_race': np.float64(0.0035), 'eo_race': np.float64(0.002), 'dp_sex': np.float64(0.0073), 'eo_sex': np.float64(0.0065)} 
+  epsilon: {'race': np.float64(0.0039), 'sex': np.float64(0.0118)} 
+  G: {'accuracy': 0.0154, 'dp_race': 0.0288, 'eo_race': 0.0223, 'dp_sex': 0.0141, 'eo_sex': 0.0102}
+
+[weighted] delta: {'accuracy': 0.01, 'dp_race': 0.01, 'eo_race': 0.01, 'dp_sex': 0.01, 'eo_sex': 0.01} 
+  raw max deviation from baseline: {'accuracy': 0.0098, 'dp_race': 0.0034, 'eo_race': 0.0042, 'dp_sex': 0.005, 'eo_sex': 0.0051} 
+  max change from 2014: {'accuracy': np.float64(0.019), 'dp_race': np.float64(0.0056), 'eo_race': np.float64(0.0074), 'dp_sex': np.float64(0.0085), 'eo_sex': np.float64(0.0102)} 
+  epsilon: {'race': np.float64(0.0045), 'sex': np.float64(0.0186)} 
+  G: {'accuracy': 0.0121, 'dp_race': 0.0264, 'eo_race': 0.0, 'dp_sex': 0.017, 'eo_sex': 0.0}
+nominal: AUC 0.5491 | DP residual race -0.0020 sex -0.0023 | acc composition -0.0041 residual -0.0137 | ESS 0.976 | balance after 0.023 (before 0.046) | clip shift 0.0000 | reliable True
+inflation: AUC 0.5491 | DP residual race -0.0020 sex -0.0023 | acc composition -0.0041 residual -0.0082 | ESS 0.976 | balance after 0.023 (before 0.046) | clip shift 0.0000 | reliable True
+base_rate: AUC 0.5491 | DP residual race -0.0020 sex -0.0023 | acc composition -0.0041 residual -0.0011 | ESS 0.976 | balance after 0.023 (before 0.046) | clip shift 0.0000 | reliable True
+[unweighted] C1: se=0.0013 margin=0.0100  at theta=0: P(holds)=1.000  P(inconcl)=0.000;  holds needs |est| <= 0.0066
+[unweighted] C2: se=0.0008 margin=0.0100  at theta=0: P(holds)=1.000  P(inconcl)=0.000;  holds needs |est| <= 0.0079
+[unweighted] C3: se=0.0013 margin=0.0100  at theta=0: P(holds)=1.000  P(inconcl)=0.000;  holds needs |est| <= 0.0065
+[unweighted] C4: se=0.0006 margin=0.0118  at theta=0: P(holds)=1.000  P(inconcl)=0.000;  holds needs |est| <= 0.0100
+[unweighted] C5: se=0.0034 margin=0.0100  at theta=0: P(holds)=0.266  P(inconcl)=0.734;  holds needs |est| <= 0.0011
+[unweighted] C6: se=0.0015 margin=0.0100  at theta=0: P(holds)=1.000  P(inconcl)=0.000;  holds needs |est| <= 0.0060
+[unweighted] C5_secondary: se=0.0034 margin=0.0100  at theta=0: P(holds)=0.692  P(inconcl)=0.308;  holds needs |est| <= 0.0034
+[unweighted] C7 anticipated: min coverage 0.9974 (target >= 0.9917); max P(wrong direction) 0.0003 (<= 0.0083); old MC percentile min coverage 0.9425
+[unweighted] C7 SE x3, rho=+0.9: min coverage 0.9968 (target >= 0.9917); max P(wrong direction) 0.0000 (<= 0.0083); old MC percentile min coverage None
+[unweighted] C7 SE x3, rho=-0.9: min coverage 0.9938 (target >= 0.9917); max P(wrong direction) 0.0047 (<= 0.0083); old MC percentile min coverage None
+[unweighted] joint C1: max P(false holds) 0.0055 (<= 0.0042); max P(false violated) 0.0050 (<= 0.0083)
+[unweighted] joint C2: max P(false holds) 0.0044 (<= 0.0042); max P(false violated) 0.0045 (<= 0.0083)
+[unweighted] joint C6: max P(false holds) 0.0049 (<= 0.0042); max P(false violated) 0.0048 (<= 0.0083)
+[unweighted] joint C3: max P(false holds) 0.0046 (<= 0.0042); max P(false violated) 0.0049 (<= 0.0083)
+[unweighted] joint C4: max P(false holds) 0.0048 (<= 0.0042); max P(false violated) 0.0043 (<= 0.0083)
+[weighted] C1: se=0.0014 margin=0.0100  at theta=0: P(holds)=1.000  P(inconcl)=0.000;  holds needs |est| <= 0.0062
+[weighted] C2: se=0.0010 margin=0.0100  at theta=0: P(holds)=1.000  P(inconcl)=0.000;  holds needs |est| <= 0.0074
+[weighted] C3: se=0.0014 margin=0.0100  at theta=0: P(holds)=1.000  P(inconcl)=0.000;  holds needs |est| <= 0.0063
+[weighted] C4: se=0.0007 margin=0.0186  at theta=0: P(holds)=1.000  P(inconcl)=0.000;  holds needs |est| <= 0.0168
+[weighted] C5: se=0.0043 margin=0.0100  at theta=0: P(holds)=0.000  P(inconcl)=1.000;  holds needs |est| <= -0.0014
+[weighted] C6: se=0.0018 margin=0.0100  at theta=0: P(holds)=0.995  P(inconcl)=0.005;  holds needs |est| <= 0.0051
+[weighted] C5_secondary: se=0.0043 margin=0.0100  at theta=0: P(holds)=0.278  P(inconcl)=0.722;  holds needs |est| <= 0.0015
+[weighted] C7 anticipated: min coverage 0.9974 (target >= 0.9917); max P(wrong direction) 0.0003 (<= 0.0083); old MC percentile min coverage 0.9325
+[weighted] joint C1: max P(false holds) 0.0046 (<= 0.0042); max P(false violated) 0.0043 (<= 0.0083)
+[weighted] joint C2: max P(false holds) 0.0046 (<= 0.0042); max P(false violated) 0.0049 (<= 0.0083)
+[weighted] joint C6: max P(false holds) 0.0043 (<= 0.0042); max P(false violated) 0.0044 (<= 0.0083)
+[weighted] joint C3: max P(false holds) 0.0043 (<= 0.0042); max P(false violated) 0.0048 (<= 0.0083)
+[weighted] joint C4: max P(false holds) 0.0042 (<= 0.0042); max P(false violated) 0.0046 (<= 0.0083)
+acceptance: {'unweighted|three_way': True, 'unweighted|C7': True, 'unweighted|joint': True, 'weighted|three_way': True, 'weighted|C7': True, 'weighted|joint': True}
+0 fit jobs to run
+ok  predictions 2014  1s
+ok  predictions 2015  1s
+ok  predictions 2016  1s
+ok  predictions 2017  0s
+ok  predictions 2018  0s
+inventory check passed for [2014, 2015, 2016, 2017, 2018]
+baseline inventory                            passes
+altered model bytes: load_model               detected (RuntimeError: model post_dp_race_s0: file hash 2c6ee06f4d30 differs from manifest 38ea2130fdb3)
+altered model bytes: inventory                detected (RuntimeError: inventory check failed:
+  model missing, altered or fitted under another specifi)
+reordered rows                                detected (RuntimeError: predictions post_dp_race_s0/2015: rows or convention differ from the evaluated f)
+fewer rows                                    detected (RuntimeError: predictions post_dp_race_s0/2015: rows or convention differ from the evaluated f)
+two persons of one household swapped          detected (RuntimeError: predictions post_dp_race_s0/2015: rows or convention differ from the evaluated f)
+truncated predictions: load_pred              detected (RuntimeError: predictions post_dp_race_s0/2016: file differs from its provenance record)
+truncated predictions: inventory              detected (RuntimeError: inventory check failed:
+  prediction missing or stale: post_dp_race_s0/2016)
+stale model hash in prediction record         detected (RuntimeError: inventory check failed:
+  prediction missing or stale: post_dp_race_s0/2016)
+leftover temporary file                       ignored (inventory still passes)
+model missing from manifest                   detected (RuntimeError: inventory check failed:
+  manifest differs: missing ['state6_gbm_s0'], unexpecte)
+failing worker exit code                      1 (detected)
+inventory after restore                       passes
+same    results/stage_a/margins.json
+same    results/stage_a/estimates_2014_2018.json
+same    results/stage_a/recoding_check.json
+same    results/stage_a/decomposition_2018_check.json
+same    results/stage_a/geographic_pairs_2014.csv
+same    results/stage_a/metrics_us_2014_2018.csv
+same    results/validation/split_variance.json
+same    results/validation/inference_validation.json
+same    results/validation/integrity_tests.json
+same    results/inventory_check.json
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'inFairness': SenSeI and SenSR will be unavailable. To install, run:
+pip install 'aif360[inFairness]'
+stage_a: all promised outputs present, current and passing their acceptance criteria
+=== MIGRATION DONE ===

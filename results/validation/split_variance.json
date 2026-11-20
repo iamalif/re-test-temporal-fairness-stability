@@ -1466,17 +1466,17 @@
  },
  "rule": "max over configurations of (V_full + S_upper95) / V_split, floored at 1",
  "provenance": {
-  "models_manifest_sha256": "e1c51845bbd43d67c6851ba8137a8c018bfd281903737d182366f2476450baac",
+  "models_manifest_sha256": "5232aad3a7386c77d1e9aef080cfa4a77d4dcd52f85ecdcf0c42c543d6369ca7",
   "pred_spec_sha256": "39a99da3e4953823deb814bfbc3f4e15a331e6f813b6ce25377cfc7e6dd01d96",
-  "git_commit": "7d16f23f0fcee815acf1a9dbda414dfd9d707d88",
+  "git_commit": "ebf359f7ad90aeedd5bf1a425388a868203e47fe",
   "git_dirty_code": false,
   "script": "check_split_variance.py",
-  "code_sha256": "669b98faa019c1c341a5cdaffe9ac77cd94b8b896743f62b593a76d5afe5b747",
+  "code_sha256": "2700bc064118160bf4b29b48637628e4ffacd481a41396062ed0603d902b5e26",
   "smoke": false,
   "inputs": {
    "data/derived/acsincome_2018.parquet": "724a82e85ab3ec2ee959dd29fd34c8aaff481dbed13786aaf14aeae678b501f0"
   },
-  "time": "2026-11-20T18:38:43"
+  "time": "2026-11-20T22:33:11"
  },
  "calibration_failures": []
 }

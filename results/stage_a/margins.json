@@ -611,12 +611,12 @@
   55
  ],
  "provenance": {
-  "models_manifest_sha256": "e1c51845bbd43d67c6851ba8137a8c018bfd281903737d182366f2476450baac",
+  "models_manifest_sha256": "5232aad3a7386c77d1e9aef080cfa4a77d4dcd52f85ecdcf0c42c543d6369ca7",
   "pred_spec_sha256": "39a99da3e4953823deb814bfbc3f4e15a331e6f813b6ce25377cfc7e6dd01d96",
-  "git_commit": "7d16f23f0fcee815acf1a9dbda414dfd9d707d88",
+  "git_commit": "ebf359f7ad90aeedd5bf1a425388a868203e47fe",
   "git_dirty_code": false,
   "script": "stage_a_analysis.py",
-  "code_sha256": "a7b680f659b3e314ccdf86313e289268bf2c7d2cc646d2b7407f2687918ae071",
+  "code_sha256": "f1f6b4eb0467019abaab01e2a7a0d80dd633218f8bba533d25ed634bdcca1605",
   "smoke": false,
   "inputs": {
    "data/derived/acsincome_2014.parquet": "e63ffaaa6b7d86c092cc2de83880dc2140951bd1c63e91074bf10cd1e812bc6f",
@@ -624,8 +624,8 @@
    "data/derived/acsincome_2016.parquet": "a38532ed2c67db99d3dc01a0bc36f0539831995ade08a22409772ab5ffc83583",
    "data/derived/acsincome_2017.parquet": "d99b903386f370bdc517efc94b55f7ff229642fdaae7da676a434beb19627227",
    "data/derived/acsincome_2018.parquet": "724a82e85ab3ec2ee959dd29fd34c8aaff481dbed13786aaf14aeae678b501f0",
-   "results/validation/split_variance.json": "dc74595045d7eade6d63b1a88121df613fbb98b8fa891a164a8c023f5fb0f1fe"
+   "results/validation/split_variance.json": "260d6953168e8fa9740393d76dd491c51cc19004276f12821eed52f4d7f8ef63"
   },
-  "time": "2026-11-20T18:43:31"
+  "time": "2026-11-20T22:38:07"
  }
 }

@@ -96,8 +96,8 @@ year (2014 unless stated) and saved with their preprocessing, as inference-only 
 hold training rows are removed (Fairlearn's ExponentiatedGradient keeps its training data in `constraints_`, which
 prediction does not use; removed from the already-fitted model without refitting, with byte-identical predictions
 for 2014–2018; `results/validation/inference_only_export.json`, D033), and the output gate fails if any model holds
-an array of 5,000 or more rows. Model files (⟨MODEL_BYTES⟩ bytes) are deposited with the archive;
-their SHA-256 hashes are in `results/models_manifest.json` (98 models; SHA-256 of that file: ⟨MANIFEST_SHA⟩), and every load verifies them.
+an array of 5,000 or more rows. Model files (107,051,279 bytes, about 107 MB) are deposited with the archive;
+their SHA-256 hashes are in `results/models_manifest.json` (98 models; SHA-256 of that file: 5232aad3a7386c77d1e9aef080cfa4a77d4dcd52f85ecdcf0c42c543d6369ca7), and every load verifies them.
 Each model also records the hash of its **fit specification**: the job; every semantic setting by value (feature
 sets, group columns, label threshold and rule, race codes, pooling rule, estimator and intervention settings
 including the library defaults of ExpGrad, harmonisation mappings); the SHA-256 of the training-year data file; the

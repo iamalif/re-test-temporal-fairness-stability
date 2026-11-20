@@ -7925,17 +7925,17 @@
   "weighted|joint": true
  },
  "provenance": {
-  "models_manifest_sha256": "e1c51845bbd43d67c6851ba8137a8c018bfd281903737d182366f2476450baac",
+  "models_manifest_sha256": "5232aad3a7386c77d1e9aef080cfa4a77d4dcd52f85ecdcf0c42c543d6369ca7",
   "pred_spec_sha256": "39a99da3e4953823deb814bfbc3f4e15a331e6f813b6ce25377cfc7e6dd01d96",
-  "git_commit": "7d16f23f0fcee815acf1a9dbda414dfd9d707d88",
+  "git_commit": "ebf359f7ad90aeedd5bf1a425388a868203e47fe",
   "git_dirty_code": false,
   "script": "validate_inference.py",
-  "code_sha256": "e3f468e57579bc8dda6669aeb2d6393a43d716fe03d730a8b1f8055150dd128f",
+  "code_sha256": "a72fbd91db7610a8bb93e0669e2d26b661fa1788442b9ac33dc8f54c69ef4473",
   "smoke": false,
   "inputs": {
-   "results/stage_a/estimates_2014_2018.json": "0c5943915d7cd8218276f814005c1fbfde32abe5557f1f002269ab75fef7f157",
-   "results/stage_a/margins.json": "ad48f1c051378353ef4810b67e263c26c4d9a8c4b77fb278ba98fe6112bcafe9"
+   "results/stage_a/estimates_2014_2018.json": "9d14b12abd6e99baf124fe1738dcfd5d63d6d360a46ebf939d51892580a706a2",
+   "results/stage_a/margins.json": "dbde45103287b2f1fd64be8365c0dfe1ed06e359d2c14bc271d7afbfc9a884ec"
   },
-  "time": "2026-11-20T18:46:00"
+  "time": "2026-11-20T22:40:38"
  }
 }

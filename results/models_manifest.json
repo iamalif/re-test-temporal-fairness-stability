@@ -2,7 +2,7 @@
  "expgrad_dp_race_s0": {
   "name": "expgrad_dp_race_s0",
   "file": "expgrad_dp_race_s0.joblib",
-  "sha256": "3e1c0f7efc00eae97fd12cc5e7992da99cdbc612b2e953b9f2676380d45f8008",
+  "sha256": "15988935949067c9e2ad0bf424317d6fa74bbbcfd5bd81a7fbc26e0e4e3a8076",
   "fit_seconds": 18533.1,
   "n_train": 1270284,
   "kind": "expgrad",
@@ -34,6 +34,13 @@
    "sklearn": "1.9.1",
    "fairlearn": "0.15.0",
    "aif360": "0.6.1"
+  },
+  "inference_only": {
+   "exported_from_sha256": "3e1c0f7efc00eae97fd12cc5e7992da99cdbc612b2e953b9f2676380d45f8008",
+   "removed_attributes": [
+    "constraints_"
+   ],
+   "decision": "D033"
   }
  },
  "gbm_s0": {

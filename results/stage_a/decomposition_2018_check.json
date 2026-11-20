@@ -1579,18 +1579,18 @@
   }
  ],
  "provenance": {
-  "models_manifest_sha256": "e1c51845bbd43d67c6851ba8137a8c018bfd281903737d182366f2476450baac",
+  "models_manifest_sha256": "5232aad3a7386c77d1e9aef080cfa4a77d4dcd52f85ecdcf0c42c543d6369ca7",
   "pred_spec_sha256": "39a99da3e4953823deb814bfbc3f4e15a331e6f813b6ce25377cfc7e6dd01d96",
-  "git_commit": "7d16f23f0fcee815acf1a9dbda414dfd9d707d88",
+  "git_commit": "ebf359f7ad90aeedd5bf1a425388a868203e47fe",
   "git_dirty_code": false,
   "script": "check_decomposition_2018.py+stage_b_secondary.py",
-  "code_sha256": "53c134bbc651602338b3dd529ed00f8de50f3cf4c92de306345a1dc6c9f8de90",
+  "code_sha256": "0c83c7e43a5106dbfd13793f1426cb32b8bf66a795be1fce454bc4447e2f3ef4",
   "smoke": false,
   "inputs": {
    "data/derived/acsincome_2014.parquet": "e63ffaaa6b7d86c092cc2de83880dc2140951bd1c63e91074bf10cd1e812bc6f",
    "data/derived/acsincome_2018.parquet": "724a82e85ab3ec2ee959dd29fd34c8aaff481dbed13786aaf14aeae678b501f0",
    "data/raw/cpi/r-cpi-u-rs-allitems.xlsx": "355ea8a14a6d07d777a17a1ddad526b8a199390a7c1bb8c7b58e2dec1a2544d8"
   },
-  "time": "2026-11-20T18:45:27"
+  "time": "2026-11-20T22:40:05"
  }
 }

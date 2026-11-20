@@ -549,3 +549,15 @@ Report: docs/qa_independent_round_3_report.md; disposition: docs/qa_independent_
   revision SWHID of that commit. test_archive.py: 24 cases, all pass.
 - FZ-3: LICENSE scoped; TMLR template files and their licence listed. FZ-4: status wording. FZ-5: accepted.
 - The run of the migration and its evidence are recorded in D034.
+
+## D034 - 2026-11-20 - Inference-only migration run (log: logs/migration_D034.txt)
+- Run from commit ebf359f (code clean): archive tests 24/24 (the "wrote archive/package.zip ... from commit ..."
+  lines at the top of the log come from the tests' temporary repositories); export_inference_only.py audited 98
+  models, found the training cache only in expgrad_dp_race_s0, removed `constraints_` (101,220,929 -> 81,523,108
+  bytes; old SHA-256 3e1c0f7e..., kept locally outside the archive) and recomputed its 2014-2018 predictions:
+  byte-identical for all five years; audit after export: 0 of 98 models hold row-level arrays.
+- Reruns: inventory check, split calibration, Stage A analysis, decomposition check, inference validation, smoke
+  fit/predict (no fit needed) and integrity tests; compare_results_to_commit.py against ebf359f: identical scientific
+  content in all 10 result files (results/validation/migration_equivalence.json). Output gate passed.
+- New values: models_manifest.json SHA-256 5232aad3a7386c77d1e9aef080cfa4a77d4dcd52f85ecdcf0c42c543d6369ca7; model
+  files 107,051,279 bytes. Plan Section 4 updated; no other plan value changes.

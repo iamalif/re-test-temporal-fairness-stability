@@ -15,13 +15,13 @@
  "_provenance": {
   "models_manifest_sha256": "4a745c5237d43655581f927525ede85a744213b8aee556c31128d7a1acde44a9",
   "pred_spec_sha256": "f635b6eaeb83a67e2eed0be9efc247586e46bb29baf6588e4299a50716129b90",
-  "git_commit": "7d16f23f0fcee815acf1a9dbda414dfd9d707d88",
+  "git_commit": "ebf359f7ad90aeedd5bf1a425388a868203e47fe",
   "git_dirty_code": false,
   "script": "test_integrity.py",
-  "code_sha256": "1a1a7ca6d410eca81a69c82a99dbe7473c632b905d7ddfa5f1f8b0569b922cb8",
+  "code_sha256": "d978717b489b85b3c142a5b12186aca3dadfc092394c8376e7a420820a5c9caa",
   "smoke": true,
   "inputs": {},
-  "time": "2026-11-20T18:46:21"
+  "time": "2026-11-20T22:40:49"
  },
  "_script_sha256": "ffcc1fa687df2af8995fc59a6c2dbaef7580c6a7a3dec2a80dcba7bd59555dca"
 }

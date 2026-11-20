@@ -1,0 +1,107 @@
+{
+ "exports": {
+  "expgrad_dp_race_s0": {
+   "old_sha256": "3e1c0f7efc00eae97fd12cc5e7992da99cdbc612b2e953b9f2676380d45f8008",
+   "new_sha256": "15988935949067c9e2ad0bf424317d6fa74bbbcfd5bd81a7fbc26e0e4e3a8076",
+   "removed_attributes": [
+    "constraints_"
+   ],
+   "old_bytes": 101220929,
+   "new_bytes": 81523108,
+   "kept_as": "data/derived/models_superseded/expgrad_dp_race_s0.3e1c0f7efc00.joblib",
+   "predictions": {
+    "2014": {
+     "old_pred_sha256": "975ed102b5f154b5e139c7c014a5c8f38425846f560e157d88e04933722fe626",
+     "new_pred_sha256": "975ed102b5f154b5e139c7c014a5c8f38425846f560e157d88e04933722fe626",
+     "identical": true
+    },
+    "2015": {
+     "old_pred_sha256": "a8ee7b3fa8786d0fd42a970b33c31ef8c1067eb665ad4b2edca0d44eba8c9d41",
+     "new_pred_sha256": "a8ee7b3fa8786d0fd42a970b33c31ef8c1067eb665ad4b2edca0d44eba8c9d41",
+     "identical": true
+    },
+    "2016": {
+     "old_pred_sha256": "ca78af5ead98b2fbfd236ea1d38c7c29c893d99d0b21136b5cd803449de3e47e",
+     "new_pred_sha256": "ca78af5ead98b2fbfd236ea1d38c7c29c893d99d0b21136b5cd803449de3e47e",
+     "identical": true
+    },
+    "2017": {
+     "old_pred_sha256": "93db9bd703240240914a568580936d8b8dd47f4ee39512fb741de869d1e642e0",
+     "new_pred_sha256": "93db9bd703240240914a568580936d8b8dd47f4ee39512fb741de869d1e642e0",
+     "identical": true
+    },
+    "2018": {
+     "old_pred_sha256": "9c91a8778ffdd966d3611941ed02bd2a4ecdf410edd2aa8feddcc5034f6addca",
+     "new_pred_sha256": "9c91a8778ffdd966d3611941ed02bd2a4ecdf410edd2aa8feddcc5034f6addca",
+     "identical": true
+    }
+   }
+  }
+ },
+ "audit_before": {
+  "expgrad_dp_race_s0": {
+   "row_level_arrays": [
+    [
+     "model.model.constraints_.U",
+     [
+      1270284,
+      18
+     ]
+    ],
+    [
+     "model.model.constraints_.utility_diff",
+     [
+      1270284
+     ]
+    ],
+    [
+     "model.model.constraints_.utilities",
+     [
+      1270284,
+      2
+     ]
+    ],
+    [
+     "model.model.constraints_.tags",
+     [
+      1270284,
+      3
+     ]
+    ],
+    [
+     "model.model.constraints_._y",
+     [
+      1270284
+     ]
+    ],
+    [
+     "model.model.constraints_.X",
+     [
+      1270284,
+      10
+     ]
+    ]
+   ],
+   "training_caches": [
+    "constraints_"
+   ]
+  }
+ },
+ "audit_after": {
+  "models": 98,
+  "with_row_level_arrays": 0,
+  "row_level_min": 5000
+ },
+ "models_total_bytes": 107051279,
+ "provenance": {
+  "models_manifest_sha256": "5232aad3a7386c77d1e9aef080cfa4a77d4dcd52f85ecdcf0c42c543d6369ca7",
+  "pred_spec_sha256": "39a99da3e4953823deb814bfbc3f4e15a331e6f813b6ce25377cfc7e6dd01d96",
+  "git_commit": "ebf359f7ad90aeedd5bf1a425388a868203e47fe",
+  "git_dirty_code": false,
+  "script": "export_inference_only.py",
+  "code_sha256": "76ccb2546ce747b4c4a5af10a3734ee2fe3d6e8e7862a1e08d567f258d32e8d0",
+  "smoke": false,
+  "inputs": {},
+  "time": "2026-11-20T22:19:53"
+ }
+}
