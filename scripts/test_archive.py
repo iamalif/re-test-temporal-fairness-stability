@@ -17,7 +17,7 @@ results = {}
 
 
 def make_tree(root: Path):
-    for rel in V.REQUIRED + ["src/a.py", "scripts/b.py", "README.md"]:
+    for rel in V.REQUIRED + ["src/a.py", "scripts/b.py", "scripts/run_all.sh", "README.md"]:
         p = root / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         if rel != "results/models_manifest.json":
@@ -113,6 +113,29 @@ def local_changed(root, rec):
 
 
 case("local reference file changed after archiving fails", False, local_changed)
+
+def python_changed(root, rec):
+    (root / "src" / "a.py").write_text("changed code\n")
+    return record_for(rec)
+
+
+case("local Python source changed after archiving fails", False, python_changed)
+
+
+def shell_changed(root, rec):
+    (root / "scripts" / "run_all.sh").write_text("changed shell code\n")
+    return record_for(rec)
+
+
+case("local shell script changed after archiving fails", False, shell_changed)
+
+
+def omit_shell(root, rec):
+    drop_member(root, "scripts/run_all.sh")
+    return record_for(rewrite_receipt_to_package(root))     # receipt and remote record match the incomplete package
+
+
+case("package without a shell script fails", False, omit_shell)
 
 passed = all(v["passed"] for v in results.values())
 for k, v in results.items():

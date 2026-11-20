@@ -1,6 +1,6 @@
 # Pre-registration: Does fairness stay put? A re-test of temporal fairness stability on ACS 2014–2024
 
-**Status:** DRAFT v0.3 (20 Nov 2026). Changes since v0.2: decision log D021–D027, D023, D026 and D027 in response to an
+**Status:** DRAFT v0.3 (20 Nov 2026). Changes since v0.2: decision log D021–D028, D023, D026–D028 in response to an
 independent review (`docs/qa_independent_1_report.md`, disposition in `docs/qa_independent_1_disposition.md`).
 Not yet archived. Values marked ⟨A⟩ are filled from Stage A result files once the Stage A rerun finishes; the rules
 that produce them are fixed here.
@@ -286,8 +286,11 @@ including zeros and the boundary D = 0, at the anticipated covariance and under 
 **Joint simulation** (C1–C4, C6): the five historical estimates, the calibration rule, the baseline estimate and the
 later-year estimate are redrawn together (20,000 replicates per case) for three true histories (flat, the observed
 2014–2018 shape, and a linear trend of 0.01 across the window) and 11 true values θ from −0.02 to 0.03; per-year
-standard errors follow the runner's convention (mean of the per-seed SEs), which overstates the noise of the seed
-mean and is conservative for false "holds". An error is judged against the realised margin. Reported: unconditional
+standard errors are the mean over seeds of the per-seed annual SEs, used both as the simulated noise and to build
+the intervals. This is a proxy for the runner, not an exact reproduction: the runner averages, over seeds, the
+square root of each seed's combined variance, which is at least as large as the proxy's combined SE, and the
+simulation does not model the covariance between seeds. The results are operating characteristics under these
+stated assumptions, not a proof of conservatism. An error is judged against the realised margin. Reported: unconditional
 rates P(holds and |θ| ≥ margin) and P(violated and |θ| ≤ margin) with Monte Carlo standard errors, and the
 null-conditioned rates P(holds | |θ| ≥ margin) and P(violated | |θ| ≤ margin) with their denominators.
 Acceptance criteria, fixed now and recomputed from the detailed results by `scripts/check_outputs.py`: every

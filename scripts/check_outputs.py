@@ -69,7 +69,8 @@ def check_validation(val):
         tw = r.get("three_way", {})
         need(set(tw) == {"C1", "C2", "C3", "C4", "C5", "C6", "C5_secondary"}, f"validation[{wt}]: three-way claims")
         for c, v in tw.items():
-            need(len(v.get("rows", [])) == 9, f"validation[{wt}] {c}: 9 theta values")
+            need(sorted(r_["theta_over_margin"] for r_ in v.get("rows", [])) == [0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0],
+                 f"validation[{wt}] {c}: the 9 registered theta values, each once")
             if not c.endswith("secondary"):
                 need(all(row["p_holds"] <= ALPHA / 2 + 1e-9 for row in v.get("rows", [])
                          if row["theta_over_margin"] >= 1), f"validation[{wt}] {c}: false holds above alpha/2")
@@ -77,13 +78,18 @@ def check_validation(val):
         need(len(c7) == (3 if wt == "unweighted" else 1), f"validation[{wt}]: C7 settings")
         for x in c7:
             rows = x.get("rows", [])
-            need(len(rows) >= 30, f"validation[{wt}] C7 {x.get('label')}: grid too small")
+            need(len(rows) >= 30 and len({(rw["a"], rw["b"]) for rw in rows}) >= 30,
+                 f"validation[{wt}] C7 {x.get('label')}: grid too small or duplicated cells")
             need(rows and min(rw["coverage"] for rw in rows) >= 1 - ALPHA, f"validation[{wt}] C7 {x.get('label')}: coverage")
         jt = r.get("joint", {})
         need(set(jt) == {"C1", "C2", "C3", "C4", "C6"}, f"validation[{wt}]: joint simulation claims")
         for c, v in jt.items():
             rows, n = v.get("rows", []), v.get("reps", 0)
-            need(len(rows) == 33 and n >= 20000, f"validation[{wt}] joint {c}: 3 histories x 11 thetas, >= 20000 reps")
+            coords = sorted((rw["history"], rw["theta"]) for rw in rows)
+            want = sorted((h, t) for h in ("flat", "observed shape", "trend")
+                          for t in (-0.02, -0.01, -0.005, 0.0, 0.005, 0.0075, 0.01, 0.0125, 0.015, 0.02, 0.03))
+            need(coords == want and n >= 20000, f"validation[{wt}] joint {c}: the 33 registered cells, each once, "
+                                                f">= 20000 replicates")
             for rw in rows:
                 need(rw["p_false_holds"] <= ALPHA / 2 + 3 * np.sqrt(ALPHA / 2 * (1 - ALPHA / 2) / max(n, 1)),
                      f"validation[{wt}] joint {c} {rw['history']} theta={rw['theta']}: false holds")

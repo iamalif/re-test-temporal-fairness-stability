@@ -457,3 +457,17 @@ Report: docs/qa_independent_round_3_report.md; disposition: docs/qa_independent_
   split calibration, which correctly fails in the sandbox because a 60,000-row sample leaves some 20% splits of a
   middle state with no Black person above $50,000 (in the real 2018 data the smallest of the 20 states has 130 such
   persons, about 26 per split). Stage B gate passes apart from P1 (skipped for time).
+
+## D028 - 2026-11-20 - Independent QA round 4 (report: docs/qa_independent_round_4_report.md)
+- Verdict: no blocking defect in the fitted models or predictions; proceed with the rebuild and refit. Blocking
+  before archive: A4-1 (archive verifier) and G4-1 (the full Stage A run must pass its gates).
+- A4-1 fixed: build and verify share one inventory (all files under src, scripts, prereg, results, docs, logs,
+  paper, incl. shell scripts; lock and project files; every model file); verify requires every inventory member in
+  the package with bytes identical to the local file. test_archive.py: 9 cases, incl. changed Python source,
+  changed shell script and a package without a shell script (receipt and record matching it), all fail as required.
+- A4-3 fixed: the gate checks the exact registered coordinates of every validation grid (each once), not counts.
+- A4-2 recorded: the joint simulation's SE is an annual-SE proxy for the runner's seed aggregation; wording in the
+  plan and the script changed; no claim of conservatism.
+- R4-1 recorded as a limitation: semantic settings are global, so a family-local setting change would also mark
+  other families for refitting (safe over-invalidation).
+- validate_inference.py changed in a docstring only, before the run.

@@ -48,13 +48,21 @@ def digest(path: Path, algo: str) -> str:
     return h.hexdigest()
 
 
-def build(root: Path = ROOT) -> None:
+def inventory(root: Path = ROOT) -> list:
+    """The one inventory policy shared by build and verify (QA 4, A4-1): every file under the code, plan, result,
+    documentation, log and manuscript folders (all file types, shell scripts included), the lock and project files,
+    and every frozen model file in the model manifest; generated receipt/flag files and third-party papers excluded."""
     manifest = json.loads((root / "results" / "models_manifest.json").read_text())
     members = [p for d in CODE_DIRS for p in sorted((root / d).rglob("*")) if p.is_file()
-               and not any(x in str(p.relative_to(root)) for x in EXCLUDE) and p.name not in ("ARCHIVED",
-                                                                                         "ARCHIVE_RECEIPT.json")]
+               and not any(x in p.relative_to(root).as_posix() for x in EXCLUDE)
+               and p.name not in ("ARCHIVED", "ARCHIVE_RECEIPT.json")]
     members += [root / "uv.lock", root / "pyproject.toml", root / "README.md"]
     members += [root / "data" / "derived" / "models" / e["file"] for e in manifest.values()]
+    return [p.relative_to(root).as_posix() for p in members]
+
+
+def build(root: Path = ROOT) -> None:
+    members = [root / rel for rel in inventory(root)]
     out = root / PACKAGE
     out.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
@@ -114,11 +122,11 @@ def verify(root: Path = ROOT, fetch=fetch_zenodo) -> list:
             problems.append(f"{rel} missing locally")
         elif digest(root / rel, "sha256") != inside[rel]:
             problems.append(f"{rel}: local file differs from the archived one")
-    for d in ("src/", "scripts/"):
-        local = {p.relative_to(root).as_posix() for p in (root / d).rglob("*.py") if "__pycache__" not in str(p)}
-        missing = sorted(x for x in local if x not in inside)
-        if missing:
-            problems.append(f"package lacks code files: {missing[:5]}")
+    for rel in inventory(root):        # complete inventory, every member byte-identical to the local file
+        if rel not in inside:
+            problems.append(f"package lacks {rel}")
+        elif digest(root / rel, "sha256") != inside[rel]:
+            problems.append(f"{rel}: local file differs from the archived one")
     if "results/models_manifest.json" in inside:
         with zipfile.ZipFile(pkg) as z:
             manifest = json.loads(z.read("results/models_manifest.json"))

@@ -154,8 +154,9 @@ def part3(wt, rng, reps=20000):
     (QA 2 A1, QA 3 A3-3). In every replicate the five historical estimates, the calibration rule (delta or epsilon
     from those estimates, floor 0.01), the baseline estimate and the later-year estimate are redrawn. True histories:
     flat, the observed seed-mean shape of 2014-2018, and a linear trend of 0.01 over the window (stress). True values
-    theta of both signs. The per-year SEs follow the runner's convention (mean over the five seeds of the per-seed
-    SE); simulating the seed mean with this SE overstates its noise, which is conservative for false 'holds'.
+    theta of both signs. Per-year SEs: the mean over the five seeds of the per-seed SE, used as the simulated noise
+    and for the intervals; a proxy for the runner (which averages the per-seed combined SEs; QA 4, A4-2), not an
+    exact reproduction and not a proof of conservatism.
     Reported, with Monte Carlo standard errors:
       unconditional rates  P(holds and |theta| >= margin), P(violated and |theta| <= margin)  (acceptance criteria)
       null-conditioned     P(holds | |theta| >= margin), P(violated | |theta| <= margin), with their denominators.
