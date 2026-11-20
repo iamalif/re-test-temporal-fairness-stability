@@ -498,3 +498,20 @@ Report: docs/qa_independent_round_3_report.md; disposition: docs/qa_independent_
   per-test error of either kind (0.0055) is below the per-test alpha (0.0083). Stated in plan 7.6.
 - Plan v0.4: all placeholders filled from the result files; C5 rationale updated to post-refit values
   (P(holds | theta = 0) = 0.27 unweighted, 0 weighted at alpha = 0.05/6).
+
+## D031 - 2026-11-20 - Final independent pre-archive review (report: docs/qa_final_pre_archive_review_2026-11-20.md)
+- Verdict: archive after correcting PA-1; the reviewer reran the Stage A output gate independently (passed) and the
+  9 archive tests; no refit indicated. Disposition: docs/qa_final_pre_archive_disposition.md.
+- PA-1 fixed (plan 7.6): the D030 sentence "the largest per-test error of either kind (0.0055) is below the per-test
+  alpha (0.0083)" is wrong and is withdrawn. At abs(theta) equal to the realised margin both null conditions apply,
+  so the probability of either error is the sum; its maximum is 0.0094 (MC SE 0.0007), about 1.6 MC SE above
+  0.05/6. Largest false "holds" 0.0055 (within the registered tolerance), largest false "violated" 0.0050. The
+  boundary mean 0.0038 is descriptive only; among grid points with abs(theta) > 0.01 the largest false-"holds" rate
+  is 0.00035. No uniform or conditional error-control guarantee is claimed. Criteria and results unchanged.
+- PA-2 fixed: the archive inventory includes the non-person reference inputs (dictionaries, crosswalk, variable
+  changes, CPI workbook; 40 files) and LICENSE (MIT for code; CC BY 4.0 for text, results and figures). Archive tests
+  9/9 pass; 251 members. No person record is packaged.
+- PA-3 recorded: P1 runs in full in Stage B with fixed settings; a runtime failure means a rerun, never omission.
+- PA-4 fixed: exposure record (five rounds and a final review; final pass read permitted 2014-2018 columns only)
+  and model size (126,749,100 bytes).
+- Plan status set to v1.0, frozen for archiving. No code affecting models, predictions or analyses changed.

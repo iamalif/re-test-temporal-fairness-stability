@@ -37,6 +37,8 @@ REQUIRED = ["prereg/PREREGISTRATION.md", "prereg/OUTPUT_CHECKLIST.md", "uv.lock"
             "results/validation/archive_tests.json"] + [f"results/data_provenance/acsincome_{y}.json"
                                                          for y in (2014, 2015, 2016, 2017, 2018)]
 CODE_DIRS = ("src", "scripts", "prereg", "results", "docs", "logs", "paper")
+REFERENCE_INPUTS = ("data/raw/dictionaries", "data/raw/crosswalk", "data/raw/variable_changes", "data/raw/cpi")
+# non-person reference inputs (public-domain US government documents); Census person files are never packaged
 EXCLUDE = ("docs/sources/", "__pycache__", ".DS_Store")
 
 
@@ -56,9 +58,10 @@ def inventory(root: Path = ROOT) -> list:
     members = [p for d in CODE_DIRS for p in sorted((root / d).rglob("*")) if p.is_file()
                and not any(x in p.relative_to(root).as_posix() for x in EXCLUDE)
                and p.name not in ("ARCHIVED", "ARCHIVE_RECEIPT.json")]
-    members += [root / "uv.lock", root / "pyproject.toml", root / "README.md"]
+    members += [root / "uv.lock", root / "pyproject.toml", root / "README.md", root / "LICENSE"]
+    members += [p for d in REFERENCE_INPUTS for p in sorted((root / d).rglob("*")) if p.is_file()]
     members += [root / "data" / "derived" / "models" / e["file"] for e in manifest.values()]
-    return [p.relative_to(root).as_posix() for p in members]
+    return [p.relative_to(root).as_posix() for p in members if p.exists()]
 
 
 def build(root: Path = ROOT) -> None:
@@ -138,7 +141,10 @@ def verify(root: Path = ROOT, fetch=fetch_zenodo) -> list:
                 problems.append(f"model file {m} in the package differs from its manifest hash")
     try:
         z = fetch(rec.get("zenodo_record", ""))
-        remote = {x["key"]: x for x in z.get("files", [])}
+        files_ = z.get("files", [])
+        if isinstance(files_, dict):            # InvenioRDM layout: {"entries": {key: {...}}}
+            files_ = list(files_.get("entries", {}).values())
+        remote = {x["key"]: x for x in files_}
         if set(remote) != {"package.zip"}:
             problems.append(f"Zenodo record lists {sorted(remote)}, expected exactly package.zip")
         x = remote.get("package.zip")

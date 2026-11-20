@@ -1,11 +1,12 @@
 # Pre-registration: Does fairness stay put? A re-test of temporal fairness stability on ACS 2014–2024
 
-**Status:** DRAFT v0.4 (20 Nov 2026). Changes since v0.2: decision log D021–D030; D023 and D026–D029 respond to five
-independent reviews (`docs/qa_independent_*_report.md` and their dispositions).
-Not yet archived. Numerical values from 2014–2018 were filled in from the Stage A run of 20 Nov 2026
+**Status:** v1.0, frozen for archiving (20 Nov 2026). Changes since v0.2: decision log D021–D031; D023, D026–D029 and D031 respond to
+five independent reviews and a final pre-archive review (`docs/qa_independent_*_report.md` and their dispositions).
+This is the deposited version; its DOI and Software Heritage identifier cannot appear in the deposited file and are
+recorded in `prereg/ARCHIVE_RECEIPT.json` and `prereg/ARCHIVED`. Numerical values from 2014–2018 were filled in from the Stage A run of 20 Nov 2026
 (commit 7d16f23, log `logs/stage_a_rerun_D029.txt`), whose output gate passed; the rules that produce them are
 fixed here, and the result files are archived with this plan.
-**Author:** single author (name withheld in this draft). Independent research; no institution endorses it.
+**Author:** single author (name withheld for anonymous review). Independent research; no institution endorses it.
 **What this study is:** a pre-registered *extension* of the temporal-stability analysis of Ding et al. (2021),
 using a *reconstructed and harmonised* pipeline, together with a reconstruction study on the original 2014–2018
 cohort. It is not an exact replication of the original fitted classifier, which is not available.
@@ -42,9 +43,12 @@ and whether the race DP gap changes less than accuracy relative to geographic ya
   (original-cohort years) and a label-drift explanation, which we treat as prior evidence.
 - **Theory read in full:** Chen et al. (NeurIPS 2022, arXiv 2206.00129), including their state-level 2014→2018
   results; Asiaee and Aryan (arXiv 2602.05144).
-- **Independent reviews (19 and 20 Nov 2026, three rounds):** the reviewer inspected code, plan, documentation and 2014–2018
-  aggregate results only, and opened no person records. It encountered the already-recorded statement listed above
-  (an external result of unstated years) and opened no source of later-year outcomes.
+- **Independent reviews (19 and 20 Nov 2026; five rounds and a final pre-archive review):** the reviewer
+  inspected code, plan, documentation and 2014–2018 results, and ran synthetic checks. Earlier rounds opened no
+  person records; the final pre-archive pass read permitted 2014–2018 columns (to recompute a subgroup count and to
+  re-run the output gate). No person record for 2019 or later was accessed. The reviewer encountered the
+  already-recorded statement listed above (an external result of unstated years) and opened no source of
+  later-year outcomes.
 
 ## 3. Data
 
@@ -87,7 +91,7 @@ and whether the race DP gap changes less than accuracy relative to geographic ya
 ## 4. Models (fitted once and frozen before archiving)
 
 All models are trained on a training split (within-state 80/20 random split, seeded, of persons) of their training
-year (2014 unless stated) and saved with their preprocessing. Model files (≈135 MB) are deposited with the archive;
+year (2014 unless stated) and saved with their preprocessing. Model files (126,749,100 bytes, about 127 MB) are deposited with the archive;
 their SHA-256 hashes are in `results/models_manifest.json` (98 models; SHA-256 of that file: e1c51845bbd43d67c6851ba8137a8c018bfd281903737d182366f2476450baac), and every load verifies them.
 Each model also records the hash of its **fit specification**: the job; every semantic setting by value (feature
 sets, group columns, label threshold and rule, race codes, pooling rule, estimator and intervention settings
@@ -306,11 +310,15 @@ Acceptance criteria, fixed now and recomputed from the detailed results by `scri
 unconditional false "holds" ≤ α/2 and false "violated" ≤ α, each within three Monte Carlo standard errors; C7
 coverage ≥ 1 − α in every grid cell; the three-way rule's analytic false-"holds" probability ≤ α/2 for every θ
 beyond the margin; complete case grids; one complete validation run (partial runs cannot replace the registered
-file). Results: all criteria passed. The largest unconditional false-"holds" rate in any cell was 0.0055
-(unweighted C1, observed history, θ = −0.01; Monte Carlo SE 0.0005); such maxima occur where θ equals the floor
-margin of 0.01, and the mean over those 60 boundary cells is 0.0038 (below α/2 = 0.0042). Beyond the margin the
-largest rate is 0.0004. The largest false-"violated" rate was 0.0050 (bound α = 0.0083). The largest per-test
-error of either kind, 0.0055, is below the per-test α of 0.0083.
+file). Results: all pre-specified criteria passed, including their Monte Carlo tolerances. The largest
+false-"holds" rate was 0.0055 (unweighted C1, observed history, θ = −0.01; Monte Carlo SE 0.0005), above the nominal
+α/2 target of 0.0042 but within its registered tolerance. The largest false-"violated" rate was 0.0050. Because
+both null conditions include equality, at |θ| equal to the realised margin either decision counts as an error; the
+largest probability of either error in a cell was 0.0094 (Monte Carlo SE 0.0007), about 1.6 Monte Carlo SE above
+the per-test α of 0.0083. Descriptively, the mean false-"holds" rate over the 60 cells with |θ| = 0.01 (where the
+margin is at its floor) is 0.0038, and among grid points with |θ| > 0.01 the largest unconditional false-"holds"
+rate is 0.00035. These finite-grid results are compatible with sampling variation around the targets; they do not
+establish a uniform or conditional error-control guarantee.
 
 ## 8. Secondary analyses (pre-specified, no family-wise claim; 95% intervals)
 
@@ -427,7 +435,9 @@ download integrity (`scripts/test_fetch.sh`), artifact tampering and failing wor
 **Archive.** Deposited on Zenodo (one immutable record) before any ACS person record for 2019 or later is
 downloaded: this file; the code at the archived commit; `uv.lock`; the frozen model files; `results/models_manifest.json`;
 the Stage A result files (calibration constants, stored 2014–2018 estimates, validation results); the harmonisation
-report and provenance table. The repository is also saved by Software Heritage. `prereg/ARCHIVE_RECEIPT.json` records
+report and provenance table; and the non-person reference inputs (Census data dictionaries, the 2018 occupation
+crosswalk, the PUMS variable-change notes and the CPI workbook). Census person files are not deposited; they are
+identified by the SHA-256 hashes in `logs/raw_sha256.txt`. The repository is also saved by Software Heritage. `prereg/ARCHIVE_RECEIPT.json` records
 the DOI, the Software Heritage identifier and the SHA-256 of every deposited file; `prereg/ARCHIVED` is created only
 after `scripts/verify_archive.py verify` has (i) checked the package bytes against the receipt; (ii) opened the
 package and hashed every member, requiring the complete inventory (this plan, the code, the lock file, every Stage A
