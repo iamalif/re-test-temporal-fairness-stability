@@ -74,12 +74,14 @@ def check_validation(val):
             if not c.endswith("secondary"):
                 need(all(row["p_holds"] <= ALPHA / 2 + 1e-9 for row in v.get("rows", [])
                          if row["theta_over_margin"] >= 1), f"validation[{wt}] {c}: false holds above alpha/2")
+        from validate_inference import C7_SETTINGS, c7_grid
         c7 = r.get("C7", [])
-        need(len(c7) == (3 if wt == "unweighted" else 1), f"validation[{wt}]: C7 settings")
+        need([x.get("label") for x in c7] == C7_SETTINGS[wt], f"validation[{wt}]: C7 settings {C7_SETTINGS[wt]}")
         for x in c7:
             rows = x.get("rows", [])
-            need(len(rows) >= 30 and len({(rw["a"], rw["b"]) for rw in rows}) >= 30,
-                 f"validation[{wt}] C7 {x.get('label')}: grid too small or duplicated cells")
+            want = sorted(c7_grid(x["cov"], x["G_fair"], x["G_acc"]))
+            got = sorted((rw["a"], rw["b"]) for rw in rows)
+            need(got == want, f"validation[{wt}] C7 {x.get('label')}: grid differs from the registered grid")
             need(rows and min(rw["coverage"] for rw in rows) >= 1 - ALPHA, f"validation[{wt}] C7 {x.get('label')}: coverage")
         jt = r.get("joint", {})
         need(set(jt) == {"C1", "C2", "C3", "C4", "C6"}, f"validation[{wt}]: joint simulation claims")

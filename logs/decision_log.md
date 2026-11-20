@@ -471,3 +471,13 @@ Report: docs/qa_independent_round_3_report.md; disposition: docs/qa_independent_
 - R4-1 recorded as a limitation: semantic settings are global, so a family-local setting change would also mark
   other families for refitting (safe over-invalidation).
 - validate_inference.py changed in a docstring only, before the run.
+
+## D029 - 2026-11-20 - Independent pre-refit deep QA (report: docs/qa_independent_pre_refit_2026-11-20.md)
+- The reviewer fitted all 43 jobs / 98 models on synthetic data with reduced trees and LFR iterations, ran the
+  command-line workflow (resume, stale-spec refit, failure exit codes), tampering and alignment checks (11/11), the
+  raw-data builder on a synthetic ZIP fixture with filter-boundary records (12/12), and the 9 archive tests.
+  Verdict: no blocking defect for the refit; proceed. Blocking before archive: the full Stage A run must pass.
+- P5-2 fixed: the gate now requires the exact C7 setting labels and the exact registered (a, b) grid of each
+  setting, rebuilt by the generator's own function (validate_inference.c7_grid); a duplicated cell is rejected.
+- P5-3 kept as a recorded limitation (global semantic settings over-invalidate other model families; safe).
+- No fitting or prediction code changed.

@@ -96,14 +96,23 @@ def old_mc(d_f, d_a, cov2, gf, ga, alpha, rng, draws=4000):
     return np.quantile(D, [alpha / 2, 1 - alpha / 2])
 
 
-def part2(cov2, gf, ga, rng, reps=20000, old_reps=1000, label=""):
-    L = np.linalg.cholesky(cov2)
-    grid = []
+C7_SETTINGS = {"unweighted": ["anticipated", "SE x3, rho=+0.9", "SE x3, rho=-0.9"], "weighted": ["anticipated"]}
+
+
+def c7_grid(cov2, gf, ga) -> list:
+    """Registered C7 grid of true changes (a, b): zeros, 1-2 SEs, 0.5-2 yardsticks, and the D = 0 boundary."""
+    cov2 = np.asarray(cov2, float)
     sf, sa = np.sqrt(cov2[0, 0]), np.sqrt(cov2[1, 1])
-    a_vals = sorted({0.0, sf, 2 * sf, 0.5 * gf, gf, 2 * gf})
-    for a in a_vals:
+    grid = []
+    for a in sorted({0.0, sf, 2 * sf, 0.5 * gf, gf, 2 * gf}):
         for b in sorted({0.0, sa, 2 * sa, 0.5 * ga, ga, 2 * ga} | {a * ga / gf}):   # last value: D = 0
             grid.append((a, b))
+    return grid
+
+
+def part2(cov2, gf, ga, rng, reps=20000, old_reps=1000, label=""):
+    L = np.linalg.cholesky(cov2)
+    grid = c7_grid(cov2, gf, ga)
     rows, worst = [], 0.0
     for a, b in grid:
         true_d = abs(a) / gf - abs(b) / ga
