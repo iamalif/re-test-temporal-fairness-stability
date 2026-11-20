@@ -1,6 +1,6 @@
 # Pre-registration: Does fairness stay put? A re-test of temporal fairness stability on ACS 2014–2024
 
-**Status:** v1.0, frozen for archiving (20 Nov 2026). Changes since v0.2: decision log D021–D031; D023, D026–D029 and D031 respond to
+**Status:** v1.0, frozen for archiving (20 Nov 2026). Changes since v0.2: decision log D021–D032; D023, D026–D029 and D031 respond to
 five independent reviews and a final pre-archive review (`docs/qa_independent_*_report.md` and their dispositions).
 This is the deposited version; its DOI and Software Heritage identifier cannot appear in the deposited file and are
 recorded in `prereg/ARCHIVE_RECEIPT.json` and `prereg/ARCHIVED`. Numerical values from 2014–2018 were filled in from the Stage A run of 20 Nov 2026
@@ -437,15 +437,19 @@ downloaded: this file; the code at the archived commit; `uv.lock`; the frozen mo
 the Stage A result files (calibration constants, stored 2014–2018 estimates, validation results); the harmonisation
 report and provenance table; and the non-person reference inputs (Census data dictionaries, the 2018 occupation
 crosswalk, the PUMS variable-change notes and the CPI workbook). Census person files are not deposited; they are
-identified by the SHA-256 hashes in `logs/raw_sha256.txt`. The repository is also saved by Software Heritage. `prereg/ARCHIVE_RECEIPT.json` records
-the DOI, the Software Heritage identifier and the SHA-256 of every deposited file; `prereg/ARCHIVED` is created only
+identified by the SHA-256 hashes in `logs/raw_sha256.txt`. The package holds exactly the files of the archived git
+commit (the build refuses uncommitted changes), plus the model files and reference inputs, which are not in git. The
+repository is also saved by Software Heritage. `prereg/ARCHIVE_RECEIPT.json` records the DOI, the Zenodo record,
+the archived commit, the Software Heritage identifier and the SHA-256, MD5 and size of the package (the hash of
+every member can be recomputed from the package itself); `prereg/ARCHIVED` is created only
 after `scripts/verify_archive.py verify` has (i) checked the package bytes against the receipt; (ii) opened the
 package and hashed every member, requiring the complete inventory (this plan, the code, the lock file, every Stage A
 and validation result, the harmonisation report and provenance table, the decision log, the raw-file hash log, and
 every frozen model file with the hash in the archived manifest); (iii) required the same bytes in the local copies;
 (iv) checked the public Zenodo record (published, DOI, exactly this package with the same MD5 and size); and
-(v) required the Software Heritage identifier and the date it was checked by hand. Offline tests with a mocked
-record (`scripts/test_archive.py`) confirm that an incomplete package fails even when the receipt matches it. The flag
+(v) required the Software Heritage revision identifier of the archived commit and the date it was checked by hand. Offline tests with a mocked
+record (`scripts/test_archive.py`) confirm that an incomplete package fails even when the receipt matches it, that untracked files are left out, that a
+build with uncommitted changes is refused, and that an identifier of another commit fails. The flag
 guards against accidental access; the verified receipt is the evidence of archiving. The SHA-256 of this file will be quoted in the paper.
 
 ## 11. Use of AI assistance

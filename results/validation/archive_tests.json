@@ -54,8 +54,30 @@
    "problems": [
     "package lacks scripts/run_all.sh"
    ]
+  },
+  "git: committed files only; matching revision SWHID passes": {
+   "passed": true,
+   "problems": []
+  },
+  "git: build with uncommitted tracked change refused": {
+   "passed": true,
+   "problems": [
+    "build refused: refusing to build: tracked files have uncommitted changes:"
+   ]
+  },
+  "git: SWHID of another commit fails": {
+   "passed": true,
+   "problems": [
+    "Software Heritage identifier is not the revision of the archived commit (expected swh:1:rev:d79d6a5595c1a9b52347a18c98aa9d54820fbd4f)"
+   ]
+  },
+  "git: directory SWHID instead of revision fails": {
+   "passed": true,
+   "problems": [
+    "Software Heritage identifier is not the revision of the archived commit (expected swh:1:rev:d79d6a5595c1a9b52347a18c98aa9d54820fbd4f)"
+   ]
   }
  },
  "all_passed": true,
- "script_sha256": "05dff92b3473ca2e8f89b89fa3f627d6afe561d4cbc09f44c89d3dc9e3ccddf8"
+ "script_sha256": "22c15c281fc30be63ee9c6435fc64c6e9a3683a405460f9c8d970bbea2ead65b"
 }

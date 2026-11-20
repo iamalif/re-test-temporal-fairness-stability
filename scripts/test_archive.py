@@ -137,6 +137,67 @@ def omit_shell(root, rec):
 
 case("package without a shell script fails", False, omit_shell)
 
+
+
+# git mode: the package holds exactly the committed files, build refuses a dirty tree, and the Software Heritage
+# identifier must be the revision of the archived commit
+import subprocess  # noqa: E402
+
+
+def git(root, *args):
+    return subprocess.run(["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t", *args],
+                          capture_output=True, text=True, check=True).stdout.strip()
+
+
+def git_case(name, expect_pass, setup):
+    with tempfile.TemporaryDirectory() as d:
+        root = Path(d)
+        make_tree(root)
+        git(root, "init", "-q")
+        git(root, "add", "-A", "--", ".", ":!data")
+        git(root, "commit", "-q", "-m", "t")
+        try:
+            problems = setup(root)
+        except SystemExit as e:
+            problems = [f"build refused: {str(e).splitlines()[0]}"]
+        ok = (not problems) == expect_pass
+        results[name] = {"passed": ok, "problems": problems[:5]}
+
+
+def build_finish(root, swh=None):
+    V.build(root)
+    rec = json.loads((root / "prereg" / "ARCHIVE_RECEIPT.json").read_text())
+    rec.update({"zenodo_record": "1", "doi": "10.5281/zenodo.1", "swh_checked_by_hand_on": "2026-11-21",
+                "swh_id": swh if swh is not None else f"swh:1:rev:{rec['git_commit']}"})
+    (root / "prereg" / "ARCHIVE_RECEIPT.json").write_text(json.dumps(rec))
+    return V.verify(root, record_for(rec))
+
+
+def untracked_left_out(root):
+    (root / "paper").mkdir(exist_ok=True)
+    (root / "paper" / "untracked_draft.pdf").write_bytes(b"draft")
+    problems = build_finish(root)
+    with zipfile.ZipFile(root / V.PACKAGE) as z:
+        names = set(z.namelist())
+    if "paper/untracked_draft.pdf" in names:
+        problems.append("untracked file was packaged")
+    if "src/a.py" not in names:
+        problems.append("committed file missing")
+    return problems
+
+
+git_case("git: committed files only; matching revision SWHID passes", True, untracked_left_out)
+
+
+def dirty_tree(root):
+    (root / "src" / "a.py").write_text("uncommitted change\n")
+    return build_finish(root)
+
+
+git_case("git: build with uncommitted tracked change refused", False, dirty_tree)
+git_case("git: SWHID of another commit fails", False, lambda root: build_finish(root, "swh:1:rev:" + "0" * 40))
+git_case("git: directory SWHID instead of revision fails", False, lambda root: build_finish(root, "swh:1:dir:" + "0" * 40))
+
 passed = all(v["passed"] for v in results.values())
 for k, v in results.items():
     print(f"{k:55s} {'ok' if v['passed'] else 'FAILED'}  {v['problems'][:1]}")

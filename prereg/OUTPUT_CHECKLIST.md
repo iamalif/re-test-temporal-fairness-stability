@@ -30,8 +30,8 @@ Enforced by `scripts/check_outputs.py stage_a|stage_b` (exits non-zero on any mi
 
 | Item | File |
 |---|---|
-| Archive package (code, plan, results, logs, all frozen model files) | `archive/package.zip` (`scripts/verify_archive.py build`) |
-| Zenodo record and DOI, Software Heritage ID and date of its manual check, SHA-256, MD5 and size of the package | `prereg/ARCHIVE_RECEIPT.json` |
+| Archive package (the files of the archived commit: code, plan, results, docs, logs, paper; all frozen model files; non-person reference inputs) | `archive/package.zip` (`scripts/verify_archive.py build`) |
+| Zenodo record and DOI, archived git commit, Software Heritage revision ID of that commit and date of its manual check, SHA-256, MD5 and size of the package | `prereg/ARCHIVE_RECEIPT.json` |
 | Guard flag, created by `scripts/verify_archive.py verify --create-flag` only after the package members, local copies, Zenodo record and Software Heritage check are verified | `prereg/ARCHIVED` |
 
 ## Stage B (after archiving)

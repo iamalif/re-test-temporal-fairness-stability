@@ -34,8 +34,7 @@ Format: ID, date (Europe/Stockholm), decision or event, reason, who.
 - Researcher waived the separate `research_collaboration_rules.md`; the working style in brief section 1 governs.
 - Commits use the researcher's GitHub noreply address (set per repository).
 - TMLR per-author annual quota (from 1 Jul 2026; secondary source says 2 papers/year for a single-author-only submitter,
-  doubled for active reviewers) - to verify on the official TMLR page. The researcher's Kaggle re-test paper is under
-  review at TMLR, so a resubmission of it and this paper could compete for the same quota. Plan submission timing accordingly.
+  doubled for active reviewers) - to verify on the official TMLR page. [redacted before archiving: personal details, D032] Plan submission timing accordingly.
 - Remaining prior-work checks split: researcher checks Google Scholar, OpenReview, IEEE Xplore/AICCSA, GitHub repos (checklist given 18 Nov 2026).
 
 ## D005 - 2026-11-18 - Second search pass (Gemini, run by researcher)
@@ -91,7 +90,7 @@ Format: ID, date (Europe/Stockholm), decision or event, reason, who.
 - TMLR editorial policies (fetched 19 Nov 2026): yearly per-author quota, generalized harmonic rule, N_1 = 2 (sole author),
   doubled for reviewers/AEs (N_1 = 4); desk rejects spend budget; a rejected paper resubmits as a new submission.
   Reproducibility studies are in scope; a Reproducibility Certification exists for papers whose primary purpose is reproduction.
-  -> Kaggle paper plus a possible resubmission plus this paper can exceed 2 in one year. Mitigation: researcher volunteers
+  -> [redacted before archiving: personal details, D032] Mitigation: researcher volunteers
   as a TMLR reviewer; avoid any desk-reject risk (template, anonymisation, claims statement).
 - Ethics: independent research, no university involvement. Secondary analysis of public, de-identified, CC0 microdata;
   no interaction with people. The paper states this; it does not claim any institutional endorsement.
@@ -515,3 +514,22 @@ Report: docs/qa_independent_round_3_report.md; disposition: docs/qa_independent_
 - PA-4 fixed: exposure record (five rounds and a final review; final pass read permitted 2014-2018 columns only)
   and model size (126,749,100 bytes).
 - Plan status set to v1.0, frozen for archiving. No code affecting models, predictions or analyses changed.
+
+## D032 - 2026-11-20 - Pre-freeze self-QA: package equals the archived commit; privacy redactions
+- Found: the archive inventory was built from files on disk, so three git-ignored files would have been deposited
+  (an old draft PDF of the paper, a smoke-test manifest and a test leftover), making the deposit differ from the
+  commit saved by Software Heritage. Fixed in verify_archive.py: in a git repository the package holds exactly the
+  committed files of the code, plan, result, docs, log and paper folders and the top-level files (plus the model files
+  and reference inputs, which are not in git); build refuses uncommitted changes to tracked files and records the
+  commit in the receipt; verify requires the Software Heritage identifier to be swh:1:rev:<that commit>.
+  test_archive.py: 13 cases (4 new: untracked file left out, dirty tree refused, identifier of another commit fails,
+  directory identifier fails); all pass. Dry-run package: 250 members, about 131 MB, every model file matches the
+  manifest hash, no person record.
+- Plan section 10 corrected: the receipt records the package's SHA-256, MD5 and size and the archived commit (it had
+  said "the SHA-256 of every deposited file"; member hashes are recomputed from the package). OUTPUT_CHECKLIST and
+  README updated (plan v1.0, years, licence, script path).
+- Privacy (researcher's decision): personal details (affiliation and a reference to another paper under double-blind
+  review) were redacted in docs/BRIEF_2026-11-18.md and in one bullet each of D004 and D008 of this log, each
+  marked "[redacted before archiving: personal details, D032]". This is the only in-place change to earlier log
+  entries; no design decision, value or rule was changed. Earlier versions remain in the public git history.
+- No code affecting data, models, predictions, analyses or validation changed.

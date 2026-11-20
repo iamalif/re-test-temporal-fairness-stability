@@ -13,10 +13,17 @@ report and provenance table, and every frozen model file listed in the package's
 recorded there; (3) requires each of these reference files to exist locally with the same bytes as in the package;
 (4) reads the public Zenodo record and checks that it is published, has the receipt's DOI and lists exactly the
 package with the same MD5 and size; (5) requires the Software Heritage identifier and the date it was checked by
-hand (Software Heritage is not queried automatically). Only then does --create-flag write prereg/ARCHIVED.
+hand (Software Heritage is not queried automatically); when the package was built from a git commit, the identifier
+must be the revision identifier of that commit (swh:1:rev:<commit hash>). Only then does --create-flag write
+prereg/ARCHIVED.
+
+In a git repository the package holds exactly the committed files (untracked or ignored files in the code folders
+are left out), and build refuses to run when tracked files have uncommitted changes, so the package, the commit
+recorded in the receipt and the Software Heritage snapshot of that commit agree.
 """
 import argparse
 import hashlib
+import subprocess
 import json
 import sys
 import time
@@ -50,6 +57,17 @@ def digest(path: Path, algo: str) -> str:
     return h.hexdigest()
 
 
+def _git(root: Path, *args) -> str:
+    return subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, check=True).stdout
+
+
+def _tracked(root: Path):
+    """The set of committed paths when root is a git repository, else None (synthetic test trees)."""
+    if not (root / ".git").exists():
+        return None
+    return set(_git(root, "ls-files", "-z").split("\0")) - {""}
+
+
 def inventory(root: Path = ROOT) -> list:
     """The one inventory policy shared by build and verify (QA 4, A4-1): every file under the code, plan, result,
     documentation, log and manuscript folders (all file types, shell scripts included), the lock and project files,
@@ -59,24 +77,34 @@ def inventory(root: Path = ROOT) -> list:
                and not any(x in p.relative_to(root).as_posix() for x in EXCLUDE)
                and p.name not in ("ARCHIVED", "ARCHIVE_RECEIPT.json")]
     members += [root / "uv.lock", root / "pyproject.toml", root / "README.md", root / "LICENSE"]
+    tracked = _tracked(root)
+    if tracked is not None:          # code, plan, results, docs, logs, paper and top-level files: committed ones only
+        members = [p for p in members if p.relative_to(root).as_posix() in tracked]
     members += [p for d in REFERENCE_INPUTS for p in sorted((root / d).rglob("*")) if p.is_file()]
     members += [root / "data" / "derived" / "models" / e["file"] for e in manifest.values()]
     return [p.relative_to(root).as_posix() for p in members if p.exists()]
 
 
 def build(root: Path = ROOT) -> None:
+    commit = ""
+    if _tracked(root) is not None:
+        dirty = _git(root, "status", "--porcelain", "--untracked-files=no").strip()
+        if dirty:
+            raise SystemExit("refusing to build: tracked files have uncommitted changes:\n" + dirty)
+        commit = _git(root, "rev-parse", "HEAD").strip()
     members = [root / rel for rel in inventory(root)]
     out = root / PACKAGE
     out.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for p in members:
             z.write(p, p.relative_to(root).as_posix())
-    rec = {"zenodo_record": "", "doi": "", "swh_id": "", "swh_checked_by_hand_on": "",
+    rec = {"zenodo_record": "", "doi": "", "swh_id": "", "swh_checked_by_hand_on": "", "git_commit": commit,
            "files": [{"name": "package.zip", "local_path": PACKAGE, "sha256": digest(out, "sha256"),
                       "md5": digest(out, "md5"), "size": out.stat().st_size}],
            "built": time.strftime("%Y-%m-%dT%H:%M:%S"), "n_members": len(members)}
     (root / "prereg" / "ARCHIVE_RECEIPT.json").write_text(json.dumps(rec, indent=1))
-    print(f"wrote {PACKAGE} ({len(members)} members, {out.stat().st_size / 1e6:.0f} MB) and the receipt draft")
+    print(f"wrote {PACKAGE} ({len(members)} members, {out.stat().st_size / 1e6:.0f} MB) and the receipt draft"
+          + (f"; commit {commit}" if commit else ""))
 
 
 def package_hashes(path: Path) -> dict:
@@ -158,6 +186,9 @@ def verify(root: Path = ROOT, fetch=fetch_zenodo) -> list:
         problems.append(f"could not verify the Zenodo record: {e}")
     if not str(rec.get("swh_id", "")).startswith("swh:1:") or not rec.get("swh_checked_by_hand_on"):
         problems.append("Software Heritage identifier or the date of its manual check is missing")
+    elif rec.get("git_commit") and str(rec["swh_id"]).split(";")[0] != f"swh:1:rev:{rec['git_commit']}":
+        problems.append(f"Software Heritage identifier is not the revision of the archived commit "
+                        f"(expected swh:1:rev:{rec['git_commit']})")
     return problems
 
 
