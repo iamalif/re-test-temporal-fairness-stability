@@ -1,9 +1,10 @@
 # Pre-registration: Does fairness stay put? A re-test of temporal fairness stability on ACS 2014–2024
 
-**Status:** DRAFT v0.3 (20 Nov 2026). Changes since v0.2: decision log D021–D028, D023, D026–D028 in response to an
-independent review (`docs/qa_independent_1_report.md`, disposition in `docs/qa_independent_1_disposition.md`).
-Not yet archived. Values marked ⟨A⟩ are filled from Stage A result files once the Stage A rerun finishes; the rules
-that produce them are fixed here.
+**Status:** DRAFT v0.4 (20 Nov 2026). Changes since v0.2: decision log D021–D030; D023 and D026–D029 respond to five
+independent reviews (`docs/qa_independent_*_report.md` and their dispositions).
+Not yet archived. Numerical values from 2014–2018 were filled in from the Stage A run of 20 Nov 2026
+(commit 7d16f23, log `logs/stage_a_rerun_D029.txt`), whose output gate passed; the rules that produce them are
+fixed here, and the result files are archived with this plan.
 **Author:** single author (name withheld in this draft). Independent research; no institution endorses it.
 **What this study is:** a pre-registered *extension* of the temporal-stability analysis of Ding et al. (2021),
 using a *reconstructed and harmonised* pipeline, together with a reconstruction study on the original 2014–2018
@@ -87,7 +88,7 @@ and whether the race DP gap changes less than accuracy relative to geographic ya
 
 All models are trained on a training split (within-state 80/20 random split, seeded, of persons) of their training
 year (2014 unless stated) and saved with their preprocessing. Model files (≈135 MB) are deposited with the archive;
-their SHA-256 hashes are in `results/models_manifest.json` (hash of that file: ⟨A⟩), and every load verifies them.
+their SHA-256 hashes are in `results/models_manifest.json` (98 models; SHA-256 of that file: e1c51845bbd43d67c6851ba8137a8c018bfd281903737d182366f2476450baac), and every load verifies them.
 Each model also records the hash of its **fit specification**: the job; every semantic setting by value (feature
 sets, group columns, label threshold and rule, race codes, pooling rule, estimator and intervention settings
 including the library defaults of ExpGrad, harmonisation mappings); the SHA-256 of the training-year data file; the
@@ -163,8 +164,8 @@ the seed-average of the five frozen models. B_m = (1/5) Σ_{t=2014}^{2018} m(t) 
 **Reported with the same machinery, outside the family:**
 - **C5 (secondary):** EO gap (race), GBM, EO_race(2019) − B, three-way with δ_EO,race at α = 0.05. Moved out of the
   family before any later-year data were seen, because of its operating characteristics at the anticipated
-  standard error (Section 7.6): at the family level α = 0.05/6 the probability of "holds" with no true change was
-  0.31 unweighted and 0 weighted (pre-refit models), so the test would mostly spend family-wise error without being
+  standard error (Section 7.6): at the family level α = 0.05/6 the probability of "holds" with no true change is
+  0.27 unweighted and 0 weighted, so the test would mostly spend family-wise error without being
   able to conclude stability. Its operating characteristics at α = 0.05 are reported as well.
 - **C8 (descriptive):** for each of the 20 states, the noise-corrected |ΔDP_race| of the state's own model between
   its 2014 test split and the state's 2019 rows, against the state's geographic reference (median over the other 19
@@ -205,12 +206,15 @@ intervals; its effect on the error rates is part of the joint simulation (Sectio
 
 - **δ_m (temporal margin):** the largest absolute deviation of a year 2014–2018 from the baseline, for the
   seed-mean trajectory of the unconstrained model, floored at 0.01. It is the year-to-year variation the original
-  paper described as "essentially constant". Values: δ_DP,race ⟨A⟩, δ_DP,sex ⟨A⟩, δ_EO,race ⟨A⟩, δ_EO,sex ⟨A⟩.
+  paper described as "essentially constant". Values (unweighted; weighted identical): δ_DP,race = δ_DP,sex = δ_EO,race = δ_EO,sex = 0.01, the floor (largest
+  observed deviations 0.0024, 0.0044, 0.0014 and 0.0034; weighted 0.0034, 0.0050, 0.0042, 0.0051).
 - **ε_g (historical disparity envelope):** the largest absolute seed-mean DP of the DP-post-processed model (group
-  g) in any year 2014–2018, floored at 0.01. Values: ε_race ⟨A⟩, ε_sex ⟨A⟩. Per-seed values are reported.
+  g) in any year 2014–2018, floored at 0.01. Values: ε_race = 0.01 (floor; observed 0.0039) and ε_sex = 0.0118 unweighted; ε_race = 0.01 (observed 0.0045)
+  and ε_sex = 0.0186 weighted. Per-seed values are reported.
 - **G_m (geographic yardstick):** the median, over the 380 ordered pairs of the 20 largest states (2014), of the
   noise-corrected absolute change of metric m when the state-s model is applied to state s′ instead of s
-  (|Δ|_c = sqrt(max(Δ² − SE², 0))), floored at 0.005 for use in C7. Values: G_DP,race ⟨A⟩, G_acc ⟨A⟩.
+  (|Δ|_c = sqrt(max(Δ² − SE², 0))), floored at 0.005 for use in C7. Values: G_DP,race = 0.0288 and G_acc = 0.0154 unweighted; 0.0264
+  and 0.0121 weighted (all 380 pairs computable for every metric and weighting).
 - **Floor 0.01** is fixed a priori as the smallest change treated as substantive; it binds only if the observed
   2014–2018 variation is smaller.
 - **Margin sensitivity:** every three-way decision is also reported for margins 0.005, 0.0075, …, 0.03.
@@ -241,7 +245,9 @@ assuming roughly normal split estimates), which makes Monte Carlo error more lik
 adjustment. The variance of every training-year test-split estimate of a metric and weighting is multiplied by the
 largest ratio over the configurations, floored at 1. Every configuration must have at least 95% valid splits for
 every metric; otherwise the calibration fails and must be resolved before archiving (no default of 1 is
-substituted). Values and all per-configuration ratios: ⟨A⟩ (`results/validation/split_variance.json`). This is an
+substituted). Values (accuracy, DP race, EO race, DP sex, EO sex): unweighted 1.176, 1.163, 1.246, 1.260, 1.214; weighted
+1.189, 1.308, 1.306, 1.204, 1.203; no calibration failure; per-state configurations used California, New Jersey
+and Missouri; all per-configuration ratios in `results/validation/split_variance.json`. This is an
 approximate calibration over representative settings, not a derivation.
 
 ### 7.2 Decisions
@@ -281,8 +287,11 @@ C8 ties (equal noise-corrected changes, which the truncation at zero can produce
 At the standard errors anticipated from 2014–2018 (later year approximated by 2018 on all rows; baseline variance
 Σ_t Var_t / 25), the probabilities of each decision as a function of the true θ are computed exactly and checked by
 simulation (`scripts/validate_inference.py`, `results/validation/inference_validation.json`). Anticipated standard
-errors and the probability of "holds" at θ = 0 (unweighted / weighted): ⟨A⟩. C7 coverage over a grid of true changes
-including zeros and the boundary D = 0, at the anticipated covariance and under stress settings: minimum ⟨A⟩.
+errors (unweighted / weighted): C1 0.0013 / 0.0014, C2 0.0008 / 0.0010, C3 0.0013 / 0.0014, C4 0.0006 / 0.0007,
+C5 0.0034 / 0.0043, C6 0.0015 / 0.0018. Probability of "holds" at θ = 0: 1.00 for C1–C4 and C6 (C6 weighted 0.995);
+for C5 0.27 / 0.00 at α = 0.05/6 and 0.69 / 0.28 at α = 0.05. C7 coverage over a grid of true changes including
+zeros and the boundary D = 0: minimum 0.9974 at the anticipated covariance (both weightings), 0.9968 and 0.9938
+under the stress settings (target ≥ 0.9917); the former Monte Carlo percentile interval reached only 0.94 / 0.93.
 **Joint simulation** (C1–C4, C6): the five historical estimates, the calibration rule, the baseline estimate and the
 later-year estimate are redrawn together (20,000 replicates per case) for three true histories (flat, the observed
 2014–2018 shape, and a linear trend of 0.01 across the window) and 11 true values θ from −0.02 to 0.03; per-year
@@ -297,7 +306,11 @@ Acceptance criteria, fixed now and recomputed from the detailed results by `scri
 unconditional false "holds" ≤ α/2 and false "violated" ≤ α, each within three Monte Carlo standard errors; C7
 coverage ≥ 1 − α in every grid cell; the three-way rule's analytic false-"holds" probability ≤ α/2 for every θ
 beyond the margin; complete case grids; one complete validation run (partial runs cannot replace the registered
-file). Results: ⟨A⟩.
+file). Results: all criteria passed. The largest unconditional false-"holds" rate in any cell was 0.0055
+(unweighted C1, observed history, θ = −0.01; Monte Carlo SE 0.0005); such maxima occur where θ equals the floor
+margin of 0.01, and the mean over those 60 boundary cells is 0.0038 (below α/2 = 0.0042). Beyond the margin the
+largest rate is 0.0004. The largest false-"violated" rate was 0.0050 (bound α = 0.0083). The largest per-test
+error of either kind, 0.0055, is below the per-test α of 0.0083.
 
 ## 8. Secondary analyses (pre-specified, no family-wise claim; 95% intervals)
 
@@ -345,7 +358,11 @@ passes (0.010–0.023; effective sample size 97–98%; largest total-variation d
 and the clipping changes are below 0.001. Synthetic tests (`scripts/test_analysis.py`) confirm that concentrated
 weights and a shift of mass among rare categories fail the rule while a balanced case passes. Otherwise the split is reported as unreliable and P2 is not assessed. Passing is a
 necessary check, not proof that the residual is a label change. The rule was run before archiving on 2014 → 2018
-(`results/stage_a/decomposition_2018_check.json`): ⟨A⟩.
+(`results/stage_a/decomposition_2018_check.json`): reliable for all three label definitions. Domain AUC
+0.549; DP residuals −0.0020 (race) and −0.0023 (sex); group-wise balance after reweighting 0.010–0.023 against limits
+0.027–0.039, effective sample size 97.5–97.8%, largest total-variation distance 0.028; clipping changes below
+0.0001. Accuracy change 2014 → 2018 of the seed-0 model: composition −0.0041; residual −0.0137 (nominal label),
+−0.0082 (inflation-anchored), −0.0011 (base-rate-anchored).
 
 8.5 **Theory predictions:**
 - P1 (Chen et al. 2022): covariate shift is larger across states than over time. Shift magnitude = cross-fitted AUC

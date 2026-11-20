@@ -481,3 +481,20 @@ Report: docs/qa_independent_round_3_report.md; disposition: docs/qa_independent_
   setting, rebuilt by the generator's own function (validate_inference.c7_grid); a duplicated cell is rejected.
 - P5-3 kept as a recorded limitation (global semantic settings over-invalidate other model families; safe).
 - No fitting or prediction code changed.
+
+## D030 - 2026-11-20 - Stage A rerun completed; plan values filled (v0.4)
+- Run (commit 7d16f23, logs/stage_a_rerun_D029.txt) completed with "=== ALL DONE ===": all synthetic test suites
+  passed; the five 2014-2018 tables were rebuilt with build provenance (row counts unchanged); 83 stale models
+  refitted and 15 new ones fitted (98; ExpGrad 18,540 s, LFR 1,816 s); predictions and inventory check passed;
+  split calibration passed with no failure; Stage A analysis, decomposition check, inference validation,
+  integrity tests and the Stage A output gate passed.
+- Values: delta = 0.01 (floor) for every metric and weighting; epsilon race 0.01 / 0.01, sex 0.0118 / 0.0186
+  (unweighted / weighted); G dp_race 0.0288 / 0.0264, accuracy 0.0154 / 0.0121; split multipliers 1.16-1.31;
+  decomposition check reliable for all three label definitions; C7 minimum coverage 0.9938-0.9974.
+- Joint simulation: largest single-cell unconditional false-"holds" rate 0.0055 (above alpha/2 = 0.0042 but within
+  the registered three-Monte-Carlo-SE tolerance). These maxima occur where theta equals the floor margin 0.01; the
+  mean over the 60 boundary cells is 0.0038 (pooled MC SE 0.00006), below alpha/2, so the maxima reflect Monte
+  Carlo noise across 60 cells, not a systematic excess. Beyond the margin the largest rate is 0.0004. The largest
+  per-test error of either kind (0.0055) is below the per-test alpha (0.0083). Stated in plan 7.6.
+- Plan v0.4: all placeholders filled from the result files; C5 rationale updated to post-refit values
+  (P(holds | theta = 0) = 0.27 unweighted, 0 weighted at alpha = 0.05/6).

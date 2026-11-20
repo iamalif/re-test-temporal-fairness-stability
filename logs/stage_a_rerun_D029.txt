@@ -1,0 +1,311 @@
+{"corrupt_zip": "reject (expected reject)","corrupt_xlsx": "reject (expected reject)","corrupt_pdf": "reject (expected reject)","truncated_pdf": "reject (expected reject)","corrupt_xls": "reject (expected reject)","empty_file": "reject (expected reject)","valid_zip": "accept (expected accept)","truncated_zip": "reject (expected reject)","valid_pdf": "accept (expected accept)","valid_xls": "accept (expected accept)", "all_passed": true, "script_sha256": "40aed39f74d98d73b4a8f1143d1ac05e3b3ed1db96065b6cfe719c834a055202"}
+dp_finite_when_eo_race_not_computable              ok  unweighted invalid={'eo_race': 'empty group'}
+weighted_fails_independently                       ok  weighted invalid={'eo_race': 'not computable'}
+zero_replicate_denominator_is_metric_local         ok  invalid={'dp_race': 'not computable', 'eo_race': 'not computable'}
+three_way_nan_estimate                             ok  
+three_way_nan_se                                   ok  
+c7_nan_yardstick                                   ok  
+c7_nan_covariance                                  ok  
+expected_accuracy_matches_randomised_policy        ok  0.5001 vs 0.5001
+dp_formula                                         ok  
+weighted_accuracy_formula                          ok  
+violated_bound_alpha_not_half                      ok  P(violated)=0.008333
+c7_interval_contains_point                         ok  
+balance_passes_identical_distributions             ok  smd=0.0077
+balance_fails_concentrated_weights                 ok  ess_fraction=0.0005, limit=0.050
+balance_fails_shift_among_rare_categories          ok  max indicator smd=0.0029 (rare categories < 1% excluded), tvd=0.243
+wrote archive/package.zip (31 members, 0 MB) and the receipt draft
+wrote archive/package.zip (31 members, 0 MB) and the receipt draft
+wrote archive/package.zip (31 members, 0 MB) and the receipt draft
+wrote archive/package.zip (31 members, 0 MB) and the receipt draft
+wrote archive/package.zip (31 members, 0 MB) and the receipt draft
+wrote archive/package.zip (31 members, 0 MB) and the receipt draft
+wrote archive/package.zip (31 members, 0 MB) and the receipt draft
+wrote archive/package.zip (31 members, 0 MB) and the receipt draft
+wrote archive/package.zip (31 members, 0 MB) and the receipt draft
+complete package passes                                 ok  []
+package without the pre-registration fails              ok  ['package lacks prereg/PREREGISTRATION.md']
+model file differing from its manifest hash fails       ok  ['data/derived/models/m.joblib: local file differs from the archived one']
+wrong Zenodo checksum fails                             ok  ['Zenodo checksum or size differs from the receipt']
+missing Software Heritage check fails                   ok  ['Software Heritage identifier or the date of its manual check is missing']
+local reference file changed after archiving fails      ok  ['results/stage_a/margins.json: local file differs from the archived one']
+local Python source changed after archiving fails       ok  ['src/a.py: local file differs from the archived one']
+local shell script changed after archiving fails        ok  ['scripts/run_all.sh: local file differs from the archived one']
+package without a shell script fails                    ok  ['package lacks scripts/run_all.sh']
+2014 {'all_records': 3164116, 'exclude_DC': 3157599, 'AGEP>16': 2530924, 'PINCP>100': 2239302, 'WKHP>0': 1587856, 'PWGTP>=1': 1587856} PR: True
+2015 {'all_records': 3177772, 'exclude_DC': 3171162, 'AGEP>16': 2551251, 'PINCP>100': 2258726, 'WKHP>0': 1603542, 'PWGTP>=1': 1603542} PR: True
+2016 {'all_records': 3186711, 'exclude_DC': 3180065, 'AGEP>16': 2563531, 'PINCP>100': 2277931, 'WKHP>0': 1618060, 'PWGTP>=1': 1618060} PR: True
+2017 {'all_records': 3211012, 'exclude_DC': 3204447, 'AGEP>16': 2583955, 'PINCP>100': 2298749, 'WKHP>0': 1642973, 'PWGTP>=1': 1642973} PR: True
+2018 {'all_records': 3242656, 'exclude_DC': 3236107, 'AGEP>16': 2621403, 'PINCP>100': 2338339, 'WKHP>0': 1664500, 'PWGTP>=1': 1664500} PR: True
+GROUPS sex column                        ok  changed=['expgrad', 'gbm', 'lfr', 'norace', 'peryear'] pred=True
+feature set                              ok  changed=['expgrad', 'gbm', 'lfr', 'norace', 'peryear'] pred=True
+label threshold                          ok  changed=['expgrad', 'gbm', 'lfr', 'norace', 'peryear'] pred=True
+race code WHITE                          ok  changed=['expgrad', 'gbm', 'lfr', 'norace', 'peryear'] pred=True
+number of trees                          ok  changed=['expgrad', 'gbm', 'lfr', 'norace', 'peryear'] pred=True
+pooling rule                             ok  changed=['expgrad', 'gbm', 'lfr', 'norace', 'peryear'] pred=True
+LFR hyperparameter                       ok  changed=['expgrad', 'gbm', 'lfr', 'norace', 'peryear'] pred=True
+post-processing constraint               ok  changed=['expgrad', 'gbm', 'lfr', 'norace', 'peryear'] pred=True
+occupation mapping                       ok  changed=['expgrad', 'gbm', 'lfr', 'norace', 'peryear'] pred=True
+family isolation _fit_lfr                ok  changed=['lfr'] pred=False
+family isolation _fit_expgrad            ok  changed=['expgrad'] pred=False
+family isolation _fit_peryear            ok  changed=['peryear'] pred=False
+family isolation _fit_gbm                ok  changed=['gbm', 'norace'] pred=False
+lineage: changed upstream file makes dependants stale ok  changed=[] pred=False
+            2014    2015    2016    2017    2018  jump_2018_vs_trend
+OCCP_GRP                                                            
+BUS       0.0256  0.0259  0.0265  0.0273  0.0325              0.0047
+CLN       0.0395  0.0383  0.0383  0.0378  0.0373              0.0001
+CMM       0.0268  0.0277  0.0291  0.0301  0.0305             -0.0007
+CMS       0.0174  0.0176  0.0176  0.0180  0.0176             -0.0006
+CON       0.0476  0.0477  0.0472  0.0477  0.0472             -0.0005
+EAT       0.0542  0.0540  0.0544  0.0541  0.0534             -0.0007
+EDU       0.0664  0.0653  0.0657  0.0658  0.0657              0.0000
+ENG       0.0179  0.0180  0.0185  0.0187  0.0191              0.0000
+ENT       0.0207  0.0212  0.0216  0.0219  0.0218             -0.0005
+EXT       0.0017  0.0016  0.0013  0.0012  0.0014              0.0004
+FFF       0.0089  0.0087  0.0084  0.0081  0.0080              0.0001
+FIN       0.0222  0.0224  0.0225  0.0226  0.0227             -0.0000
+HLS       0.0303  0.0302  0.0299  0.0297  0.0294             -0.0001
+LGL       0.0113  0.0114  0.0114  0.0114  0.0114              0.0000
+MED       0.0576  0.0576  0.0585  0.0598  0.0607              0.0001
+MGR       0.1003  0.1030  0.1041  0.1059  0.1027             -0.0051
+MIL       0.0035  0.0035  0.0035  0.0035  0.0034             -0.0000
+OFF       0.1207  0.1206  0.1194  0.1175  0.1157             -0.0008
+PRD       0.0592  0.0586  0.0569  0.0564  0.0554             -0.0000
+PRS       0.0290  0.0287  0.0290  0.0289  0.0292              0.0002
+PRT       0.0221  0.0214  0.0210  0.0210  0.0214              0.0007
+RPR       0.0310  0.0313  0.0309  0.0299  0.0297              0.0002
+SAL       0.1041  0.1029  0.1021  0.1002  0.0996              0.0006
+SCI       0.0090  0.0092  0.0091  0.0093  0.0099              0.0006
+TRN       0.0728  0.0732  0.0731  0.0732  0.0745              0.0012
+whole cross-group moves: {4610: 'HLS', 5620: 'TRN', 5800: 'CMM'}
+split codes: [(1107, 'CMM', ['BUS', 'CMM']), (2160, 'LGL', ['ENT', 'LGL']), (2900, 'ENT', ['ENT', 'OFF']), (3540, 'MED', ['MED', 'SCI']), (4320, 'PRS', ['PRS', 'TRN']), (9820, 'MIL', ['ENG', 'MIL'])]
+max |jump| by population: {'all': 0.0051, 'black': 0.0044, 'female': 0.0048, 'male': 0.0054, 'white': 0.0056}
+83 models are not current (fit specification or file differs) and will be refitted
+43 fit jobs to run
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'inFairness': SenSeI and SenSR will be unavailable. To install, run:
+pip install 'aif360[inFairness]'
+ok  gbm_s0, post_dp_race_s0, post_eo_race_s0, post_dp_sex_s0, post_eo_sex_s0  265s
+ok  gbm_s1, post_dp_race_s1, post_eo_race_s1, post_dp_sex_s1, post_eo_sex_s1  265s
+ok  gbm_s2, post_dp_race_s2, post_eo_race_s2, post_dp_sex_s2, post_eo_sex_s2  266s
+ok  gbm_s3, post_dp_race_s3, post_eo_race_s3, post_dp_sex_s3, post_eo_sex_s3  266s
+ok  y2018_gbm_s0, y2018_post_dp_race_s0, y2018_post_dp_sex_s0  254s
+ok  y2018_gbm_s2, y2018_post_dp_race_s2, y2018_post_dp_sex_s2  254s
+ok  y2018_gbm_s1, y2018_post_dp_race_s1, y2018_post_dp_sex_s1  255s
+ok  gbm_s4, post_dp_race_s4, post_eo_race_s4, post_dp_sex_s4, post_eo_sex_s4  261s
+ok  norace_gbm_s0, norace_post_dp_sex_s0  217s
+ok  norace_gbm_s1, norace_post_dp_sex_s1  217s
+ok  y2018_gbm_s4, y2018_post_dp_race_s4, y2018_post_dp_sex_s4  247s
+ok  y2018_gbm_s3, y2018_post_dp_race_s3, y2018_post_dp_sex_s3  247s
+ok  state6_gbm_s0, state6_post_dp_race_s0  20s
+ok  state48_gbm_s0, state48_post_dp_race_s0  13s
+ok  state36_gbm_s0, state36_post_dp_race_s0  11s
+ok  state12_gbm_s0, state12_post_dp_race_s0  11s
+ok  state42_gbm_s0, state42_post_dp_race_s0  7s
+ok  state17_gbm_s0, state17_post_dp_race_s0  7s
+ok  state39_gbm_s0, state39_post_dp_race_s0  7s
+ok  state37_gbm_s0, state37_post_dp_race_s0  6s
+ok  state26_gbm_s0, state26_post_dp_race_s0  6s
+ok  state13_gbm_s0, state13_post_dp_race_s0  6s
+ok  state34_gbm_s0, state34_post_dp_race_s0  6s
+ok  state51_gbm_s0, state51_post_dp_race_s0  5s
+ok  state25_gbm_s0, state25_post_dp_race_s0  5s
+ok  state53_gbm_s0, state53_post_dp_race_s0  6s
+ok  state18_gbm_s0, state18_post_dp_race_s0  5s
+ok  state24_gbm_s0, state24_post_dp_race_s0  5s
+ok  state55_gbm_s0, state55_post_dp_race_s0  5s
+ok  state47_gbm_s0, state47_post_dp_race_s0  5s
+ok  state29_gbm_s0, state29_post_dp_race_s0  4s
+ok  state4_gbm_s0, state4_post_dp_race_s0  5s
+ok  norace_gbm_s2, norace_post_dp_sex_s2  216s
+ok  norace_gbm_s3, norace_post_dp_sex_s3  216s
+ok  norace_gbm_s4, norace_post_dp_sex_s4  218s
+ok  rawgbm_s0  226s
+ok  peryear_gbm_s0  212s
+ok  peryear_gbm_s1  211s
+ok  peryear_gbm_s2  206s
+ok  peryear_gbm_s3  164s
+ok  peryear_gbm_s4  155s
+ok  lfr_race_s0  1816s
+ok  expgrad_dp_race_s0  18540s
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'inFairness': SenSeI and SenSR will be unavailable. To install, run:
+pip install 'aif360[inFairness]'
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'inFairness': SenSeI and SenSR will be unavailable. To install, run:
+pip install 'aif360[inFairness]'
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'inFairness': SenSeI and SenSR will be unavailable. To install, run:
+pip install 'aif360[inFairness]'
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'inFairness': SenSeI and SenSR will be unavailable. To install, run:
+pip install 'aif360[inFairness]'
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'inFairness': SenSeI and SenSR will be unavailable. To install, run:
+pip install 'aif360[inFairness]'
+ok  predictions 2014  230s
+ok  predictions 2015  234s
+ok  predictions 2016  236s
+ok  predictions 2017  237s
+ok  predictions 2018  276s
+inventory check passed for [2014, 2015, 2016, 2017, 2018]
+unweighted {'accuracy': np.float64(1.176), 'dp_race': np.float64(1.163), 'eo_race': np.float64(1.246), 'dp_sex': np.float64(1.26), 'eo_sex': np.float64(1.214)}
+weighted {'accuracy': np.float64(1.189), 'dp_race': np.float64(1.308), 'eo_race': np.float64(1.306), 'dp_sex': np.float64(1.204), 'eo_sex': np.float64(1.203)}
+year                           2014    2015    2016    2017    2018
+model              metric                                          
+expgrad_dp_race_s0 accuracy  0.8101  0.8033  0.8004  0.7955  0.7904
+                   dp_race   0.0109  0.0086  0.0117  0.0112  0.0080
+                   dp_sex    0.1807  0.1791  0.1789  0.1765  0.1767
+                   eo_race  -0.0879 -0.0923 -0.0876 -0.0907 -0.0855
+                   eo_sex    0.1498  0.1505  0.1507  0.1472  0.1474
+gbm_s0             accuracy  0.8190  0.8126  0.8103  0.8059  0.8012
+                   dp_race   0.1548  0.1542  0.1565  0.1586  0.1562
+                   dp_sex    0.1842  0.1826  0.1808  0.1781  0.1781
+                   eo_race   0.1654  0.1642  0.1650  0.1658  0.1657
+                   eo_sex    0.1472  0.1487  0.1484  0.1445  0.1435
+lfr_race_s0        accuracy  0.7852  0.7796  0.7760  0.7707  0.7655
+                   dp_race   0.0841  0.0817  0.0819  0.0824  0.0798
+                   dp_sex    0.1949  0.1909  0.1896  0.1885  0.1881
+                   eo_race   0.0590  0.0524  0.0536  0.0517  0.0548
+                   eo_sex    0.1977  0.1940  0.1936  0.1909  0.1884
+post_dp_race_s0    accuracy  0.8098  0.8032  0.8004  0.7958  0.7910
+                   dp_race   0.0000 -0.0020  0.0004 -0.0005 -0.0035
+                   dp_sex    0.1838  0.1819  0.1817  0.1793  0.1794
+                   eo_race  -0.1045 -0.1061 -0.1011 -0.1053 -0.1010
+                   eo_sex    0.1511  0.1501  0.1507  0.1475  0.1476
+post_dp_sex_s0     accuracy  0.8079  0.8003  0.7977  0.7928  0.7867
+                   dp_race   0.1290  0.1258  0.1299  0.1319  0.1296
+                   dp_sex    0.0001 -0.0038 -0.0060 -0.0093 -0.0118
+                   eo_race   0.1279  0.1176  0.1195  0.1247  0.1246
+                   eo_sex   -0.1491 -0.1487 -0.1487 -0.1517 -0.1541
+rawgbm_s0          accuracy  0.8239  0.8178  0.8158  0.8115  0.8067
+                   dp_race   0.1521  0.1522  0.1553  0.1571  0.1541
+                   dp_sex    0.1787  0.1769  0.1757  0.1738  0.1754
+                   eo_race   0.1598  0.1554  0.1589  0.1601  0.1560
+                   eo_sex    0.1360  0.1357  0.1358  0.1334  0.1349
+
+[unweighted] delta: {'accuracy': 0.01, 'dp_race': 0.01, 'eo_race': 0.01, 'dp_sex': 0.01, 'eo_sex': 0.01} 
+  raw max deviation from baseline: {'accuracy': 0.0086, 'dp_race': 0.0024, 'eo_race': 0.0014, 'dp_sex': 0.0044, 'eo_sex': 0.0034} 
+  max change from 2014: {'accuracy': np.float64(0.017), 'dp_race': np.float64(0.0035), 'eo_race': np.float64(0.002), 'dp_sex': np.float64(0.0073), 'eo_sex': np.float64(0.0065)} 
+  epsilon: {'race': np.float64(0.0039), 'sex': np.float64(0.0118)} 
+  G: {'accuracy': 0.0154, 'dp_race': 0.0288, 'eo_race': 0.0223, 'dp_sex': 0.0141, 'eo_sex': 0.0102}
+
+[weighted] delta: {'accuracy': 0.01, 'dp_race': 0.01, 'eo_race': 0.01, 'dp_sex': 0.01, 'eo_sex': 0.01} 
+  raw max deviation from baseline: {'accuracy': 0.0098, 'dp_race': 0.0034, 'eo_race': 0.0042, 'dp_sex': 0.005, 'eo_sex': 0.0051} 
+  max change from 2014: {'accuracy': np.float64(0.019), 'dp_race': np.float64(0.0056), 'eo_race': np.float64(0.0074), 'dp_sex': np.float64(0.0085), 'eo_sex': np.float64(0.0102)} 
+  epsilon: {'race': np.float64(0.0045), 'sex': np.float64(0.0186)} 
+  G: {'accuracy': 0.0121, 'dp_race': 0.0264, 'eo_race': 0.0, 'dp_sex': 0.017, 'eo_sex': 0.0}
+nominal: AUC 0.5491 | DP residual race -0.0020 sex -0.0023 | acc composition -0.0041 residual -0.0137 | ESS 0.976 | balance after 0.023 (before 0.046) | clip shift 0.0000 | reliable True
+inflation: AUC 0.5491 | DP residual race -0.0020 sex -0.0023 | acc composition -0.0041 residual -0.0082 | ESS 0.976 | balance after 0.023 (before 0.046) | clip shift 0.0000 | reliable True
+base_rate: AUC 0.5491 | DP residual race -0.0020 sex -0.0023 | acc composition -0.0041 residual -0.0011 | ESS 0.976 | balance after 0.023 (before 0.046) | clip shift 0.0000 | reliable True
+[unweighted] C1: se=0.0013 margin=0.0100  at theta=0: P(holds)=1.000  P(inconcl)=0.000;  holds needs |est| <= 0.0066
+[unweighted] C2: se=0.0008 margin=0.0100  at theta=0: P(holds)=1.000  P(inconcl)=0.000;  holds needs |est| <= 0.0079
+[unweighted] C3: se=0.0013 margin=0.0100  at theta=0: P(holds)=1.000  P(inconcl)=0.000;  holds needs |est| <= 0.0065
+[unweighted] C4: se=0.0006 margin=0.0118  at theta=0: P(holds)=1.000  P(inconcl)=0.000;  holds needs |est| <= 0.0100
+[unweighted] C5: se=0.0034 margin=0.0100  at theta=0: P(holds)=0.266  P(inconcl)=0.734;  holds needs |est| <= 0.0011
+[unweighted] C6: se=0.0015 margin=0.0100  at theta=0: P(holds)=1.000  P(inconcl)=0.000;  holds needs |est| <= 0.0060
+[unweighted] C5_secondary: se=0.0034 margin=0.0100  at theta=0: P(holds)=0.692  P(inconcl)=0.308;  holds needs |est| <= 0.0034
+[unweighted] C7 anticipated: min coverage 0.9974 (target >= 0.9917); max P(wrong direction) 0.0003 (<= 0.0083); old MC percentile min coverage 0.9425
+[unweighted] C7 SE x3, rho=+0.9: min coverage 0.9968 (target >= 0.9917); max P(wrong direction) 0.0000 (<= 0.0083); old MC percentile min coverage None
+[unweighted] C7 SE x3, rho=-0.9: min coverage 0.9938 (target >= 0.9917); max P(wrong direction) 0.0047 (<= 0.0083); old MC percentile min coverage None
+[unweighted] joint C1: max P(false holds) 0.0055 (<= 0.0042); max P(false violated) 0.0050 (<= 0.0083)
+[unweighted] joint C2: max P(false holds) 0.0044 (<= 0.0042); max P(false violated) 0.0045 (<= 0.0083)
+[unweighted] joint C6: max P(false holds) 0.0049 (<= 0.0042); max P(false violated) 0.0048 (<= 0.0083)
+[unweighted] joint C3: max P(false holds) 0.0046 (<= 0.0042); max P(false violated) 0.0049 (<= 0.0083)
+[unweighted] joint C4: max P(false holds) 0.0048 (<= 0.0042); max P(false violated) 0.0043 (<= 0.0083)
+[weighted] C1: se=0.0014 margin=0.0100  at theta=0: P(holds)=1.000  P(inconcl)=0.000;  holds needs |est| <= 0.0062
+[weighted] C2: se=0.0010 margin=0.0100  at theta=0: P(holds)=1.000  P(inconcl)=0.000;  holds needs |est| <= 0.0074
+[weighted] C3: se=0.0014 margin=0.0100  at theta=0: P(holds)=1.000  P(inconcl)=0.000;  holds needs |est| <= 0.0063
+[weighted] C4: se=0.0007 margin=0.0186  at theta=0: P(holds)=1.000  P(inconcl)=0.000;  holds needs |est| <= 0.0168
+[weighted] C5: se=0.0043 margin=0.0100  at theta=0: P(holds)=0.000  P(inconcl)=1.000;  holds needs |est| <= -0.0014
+[weighted] C6: se=0.0018 margin=0.0100  at theta=0: P(holds)=0.995  P(inconcl)=0.005;  holds needs |est| <= 0.0051
+[weighted] C5_secondary: se=0.0043 margin=0.0100  at theta=0: P(holds)=0.278  P(inconcl)=0.722;  holds needs |est| <= 0.0015
+[weighted] C7 anticipated: min coverage 0.9974 (target >= 0.9917); max P(wrong direction) 0.0003 (<= 0.0083); old MC percentile min coverage 0.9325
+[weighted] joint C1: max P(false holds) 0.0046 (<= 0.0042); max P(false violated) 0.0043 (<= 0.0083)
+[weighted] joint C2: max P(false holds) 0.0046 (<= 0.0042); max P(false violated) 0.0049 (<= 0.0083)
+[weighted] joint C6: max P(false holds) 0.0043 (<= 0.0042); max P(false violated) 0.0044 (<= 0.0083)
+[weighted] joint C3: max P(false holds) 0.0043 (<= 0.0042); max P(false violated) 0.0048 (<= 0.0083)
+[weighted] joint C4: max P(false holds) 0.0042 (<= 0.0042); max P(false violated) 0.0046 (<= 0.0083)
+acceptance: {'unweighted|three_way': True, 'unweighted|C7': True, 'unweighted|joint': True, 'weighted|three_way': True, 'weighted|C7': True, 'weighted|joint': True}
+13 fit jobs to run
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+ok  gbm_s0, post_dp_race_s0, post_eo_race_s0, post_dp_sex_s0, post_eo_sex_s0  1s
+ok  gbm_s1, post_dp_race_s1, post_eo_race_s1, post_dp_sex_s1, post_eo_sex_s1  1s
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'inFairness': SenSeI and SenSR will be unavailable. To install, run:
+pip install 'aif360[inFairness]'
+ok  y2018_gbm_s0, y2018_post_dp_race_s0, y2018_post_dp_sex_s0  0s
+ok  y2018_gbm_s1, y2018_post_dp_race_s1, y2018_post_dp_sex_s1  0s
+ok  norace_gbm_s0, norace_post_dp_sex_s0  0s
+ok  norace_gbm_s1, norace_post_dp_sex_s1  0s
+ok  state6_gbm_s0, state6_post_dp_race_s0  0s
+ok  state48_gbm_s0, state48_post_dp_race_s0  0s
+ok  rawgbm_s0  0s
+ok  peryear_gbm_s0  0s
+ok  peryear_gbm_s1  0s
+ok  expgrad_dp_race_s0  4s
+ok  lfr_race_s0  9s
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'inFairness': SenSeI and SenSR will be unavailable. To install, run:
+pip install 'aif360[inFairness]'
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'inFairness': SenSeI and SenSR will be unavailable. To install, run:
+pip install 'aif360[inFairness]'
+WARNING:root:No module named 'tensorflow': AdversarialDebiasing will be unavailable. To install, run:
+pip install 'aif360[AdversarialDebiasing]'
+WARNING:root:No module named 'inFairness': SenSeI and SenSR will be unavailable. To install, run:
+pip install 'aif360[inFairness]'
+ok  predictions 2014  1s
+ok  predictions 2015  1s
+ok  predictions 2016  1s
+ok  predictions 2017  1s
+ok  predictions 2018  1s
+inventory check passed for [2014, 2015, 2016, 2017, 2018]
+baseline inventory                            passes
+altered model bytes: load_model               detected (RuntimeError: model post_dp_race_s0: file hash 2c6ee06f4d30 differs from manifest 38ea2130fdb3)
+altered model bytes: inventory                detected (RuntimeError: inventory check failed:
+  model missing, altered or fitted under another specifi)
+reordered rows                                detected (RuntimeError: predictions post_dp_race_s0/2015: rows or convention differ from the evaluated f)
+fewer rows                                    detected (RuntimeError: predictions post_dp_race_s0/2015: rows or convention differ from the evaluated f)
+two persons of one household swapped          detected (RuntimeError: predictions post_dp_race_s0/2015: rows or convention differ from the evaluated f)
+truncated predictions: load_pred              detected (RuntimeError: predictions post_dp_race_s0/2016: file differs from its provenance record)
+truncated predictions: inventory              detected (RuntimeError: inventory check failed:
+  prediction missing or stale: post_dp_race_s0/2016)
+stale model hash in prediction record         detected (RuntimeError: inventory check failed:
+  prediction missing or stale: post_dp_race_s0/2016)
+leftover temporary file                       ignored (inventory still passes)
+model missing from manifest                   detected (RuntimeError: inventory check failed:
+  manifest differs: missing ['state6_gbm_s0'], unexpecte)
+failing worker exit code                      1 (detected)
+inventory after restore                       passes
+stage_a: all promised outputs present, current and passing their acceptance criteria
+=== ALL DONE ===
