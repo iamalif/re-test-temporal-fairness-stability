@@ -561,3 +561,26 @@ Report: docs/qa_independent_round_3_report.md; disposition: docs/qa_independent_
   content in all 10 result files (results/validation/migration_equivalence.json). Output gate passed.
 - New values: models_manifest.json SHA-256 5232aad3a7386c77d1e9aef080cfa4a77d4dcd52f85ecdcf0c42c543d6369ca7; model
   files 107,051,279 bytes. Plan Section 4 updated; no other plan value changes.
+
+## D035 - 2026-11-20 - Second freeze review (report: docs/qa_second_freeze_review_2026-11-20.md); pre-deposit checks
+- Verdict for e816bfd: archive; no blocking finding. The reviewer recomputed ExpGrad predictions from the original and
+  exported files on all 8,116,931 rows of 2014-2018 (exact equality), confirmed identical retained fitted state,
+  scanned all 98 models, rebuilt the package in isolation (264 members) and reran the Stage A gate (passed).
+- F2-1 fixed fail-safe (docs/qa_second_freeze_disposition.md): the export script stops, changing nothing, if an
+  existing export record no longer matches the manifest.
+- Author's pre-deposit checks (documentation and synthetic data only; no later-year person record):
+  - Every variable the pipeline reads is present in the 2019 and 2021-2024 dictionaries under its expected name; the
+    state variable is STATE from 2023 (already renamed on reading); RELSHIPP replaces RELP from 2019 (mapped);
+    OCCP code lists and group prefixes identical 2018-2024; COW, SCHL, MAR, SEX and RAC1P code sets identical
+    2017-2024; POBP changes only the deletions already merged (456 from 2022, 463 in 2024); every RELSHIPP code
+    mapped; the CPI workbook has annual averages through 2025.
+  - Synthetic raw archives in the 2019 (ST) and 2023/2024 (STATE) layouts (psam_ members, PR file, string serial
+    numbers, filter-boundary values) built with the real builder in a scratch copy: all 51 geographies, Puerto Rico,
+    filter counts as constructed; all 97 models evaluated on later years predicted valid probabilities through the
+    real prediction code (raw-code model correctly not evaluated after 2018).
+  - Census listings: csv_pus.zip and csv_ppr.zip exist for 2019 and 2024 at the URLs of download_stage2.sh; the
+    2025 1-year PUMS files are not released (only the 1-year tables, 29 Oct 2026).
+  - Dry-run build of the package from e816bfd outside the project and verification against a mock record: no
+    problems (264 members).
+- Plan wording corrected: status line (D021-D035; two freeze reviews), exposure record (second freeze review),
+  Section 3 (2025 PUMS not released). No value, rule or code affecting results changed.

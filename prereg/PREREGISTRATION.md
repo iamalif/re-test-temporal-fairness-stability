@@ -1,7 +1,8 @@
 # Pre-registration: Does fairness stay put? A re-test of temporal fairness stability on ACS 2014–2024
 
-**Status:** v1.0, the version prepared for deposit (20 Nov 2026). Changes since v0.2: decision log D021–D033; D023,
-D026–D029, D031 and D033 respond to five independent reviews, a final pre-archive review and a freeze review (`docs/qa_independent_*_report.md` and their dispositions).
+**Status:** v1.0, the version prepared for deposit (20 Nov 2026). Changes since v0.2: decision log D021–D035; D023,
+D026–D029, D031, D033 and D035 respond to five independent reviews, a final pre-archive review and two freeze reviews
+(`docs/qa_*` reports and their dispositions).
 Identifiers are recorded outside the package, in the verified receipt (`prereg/ARCHIVE_RECEIPT.json`) and the flag
 (`prereg/ARCHIVED`). Numerical values from 2014–2018 were filled in from the Stage A run of 20 Nov 2026
 (commit 7d16f23, log `logs/stage_a_rerun_D029.txt`), whose output gate passed; the rules that produce them are
@@ -43,11 +44,12 @@ and whether the race DP gap changes less than accuracy relative to geographic ya
   (original-cohort years) and a label-drift explanation, which we treat as prior evidence.
 - **Theory read in full:** Chen et al. (NeurIPS 2022, arXiv 2206.00129), including their state-level 2014→2018
   results; Asiaee and Aryan (arXiv 2602.05144).
-- **Independent reviews (19 and 20 Nov 2026; five rounds, a final pre-archive review and a freeze review):** the reviewer
+- **Independent reviews (19 and 20 Nov 2026; five rounds, a final pre-archive review and two freeze reviews):** the reviewer
   inspected code, plan, documentation and 2014–2018 results, and ran synthetic checks. Earlier rounds opened no
   person records; the final pre-archive pass read permitted 2014–2018 columns (to recompute a subgroup count and to
-  re-run the output gate), and the freeze review inspected the serialised model objects (attribute names and array
-  shapes of a 2014 training cache, no individual record printed). No person record for 2019 or later was accessed. The reviewer encountered the
+  re-run the output gate), the first freeze review inspected the serialised model objects (attribute names and array
+  shapes of a 2014 training cache, no individual record printed), and the second freeze review recomputed the
+  ExpGrad predictions on all 2014–2018 rows. No person record for 2019 or later was accessed. The reviewer encountered the
   already-recorded statement listed above (an external result of unstated years) and opened no source of
   later-year outcomes.
 
@@ -56,7 +58,8 @@ and whether the race DP gap changes less than accuracy relative to geographic ya
 - **Source:** US Census Bureau ACS 1-year PUMS person files (`csv_pus.zip`, 50 states + DC; `csv_ppr.zip`, Puerto
   Rico), survey years 2014–2019 and 2021–2024. Both files are required for every year; the build fails unless the
   year contains exactly the 51 registered geographies. Excluded: 2020 (experimental weights only; Census advises
-  against comparison) and 2025 (release not available when archiving). SHA-256 of every raw file:
+  against comparison) and 2025 (the 2025 1-year PUMS files had not been released when archiving; only the 1-year
+summary tables had). SHA-256 of every raw file:
   `logs/raw_sha256.txt` (append-only: an entry is never rewritten, and a file that no longer matches its entry is
   an error). Each derived table records the hashes of its two raw files and of the build code (reading, filtering,
   column selection and types, library versions); a table without this provenance, or built by other code, is

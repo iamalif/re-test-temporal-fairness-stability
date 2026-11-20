@@ -14,8 +14,9 @@ every frozen model that has them, without refitting:
    with a non-zero exit (the old model file is kept, so the change can be reverted);
 4. writes results/validation/inference_only_export.json.
 
-Running it again when no model holds a cache only re-audits and leaves the record unchanged (on a rebuild from
-scratch, where models are saved inference-only when fitted, it writes a record with no exports).
+Running it again when no model holds a cache re-audits and keeps the record if it still matches the manifest; if it
+does not (models refitted since), it stops with recovery instructions and changes nothing; with no record (a rebuild
+from scratch, where models are saved inference-only when fitted) it writes a record with no exports.
   uv run python scripts/export_inference_only.py
 """
 import json
@@ -50,8 +51,18 @@ def main():
             raise SystemExit(f"{name}: row-level arrays outside the known training caches: {found[:5]}; nothing changed")
     print(f"audited {len(audit)} models; {len(todo)} hold training caches: {todo}", flush=True)
     if not todo:
-        if RECORD.exists():
-            print("nothing to export; existing record kept")
+        if RECORD.exists():          # the record must still describe the current model files (second freeze review F2-1)
+            rec = json.loads(RECORD.read_text())
+            stale = [n for n, e in rec.get("exports", {}).items()
+                     if manifest.get(n, {}).get("sha256") != e.get("new_sha256")
+                     or manifest.get(n, {}).get("inference_only", {}).get("exported_from_sha256") != e.get("old_sha256")]
+            if stale:
+                raise SystemExit(
+                    f"the export record no longer matches the manifest for {stale} (models refitted since the migration?). "
+                    f"Nothing was changed. Keep the old record as history (e.g. move it to "
+                    f"results/validation/inference_only_export_<date>.json and log it in the decision log), then rerun "
+                    f"this script to write a current audit record.")
+            print("nothing to export; existing record matches the manifest and is kept")
         else:                       # e.g. a rebuild from scratch: models were saved inference-only when fitted
             RECORD.write_text(json.dumps({
                 "exports": {}, "audit_before": {},
