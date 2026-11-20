@@ -417,3 +417,43 @@ Report: docs/qa_independent_round_2_report.md; disposition: docs/qa_independent_
   C5 rationale; scripts/verify_archive.py.
 - Rehearsal of the full chain with the final code in the sandbox: Stage A gate passes; Stage B gate passes apart
   from P1 (skipped for time; P1 run separately on 3 states).
+
+## D027 - 2026-11-20 - Independent QA round 3: dispositions and changes (before the Stage A rerun)
+Report: docs/qa_independent_round_3_report.md; disposition: docs/qa_independent_round_3_disposition.md.
+- R3-1: semantic configuration serialised by value in both specifications (feature sets, group columns, label
+  threshold and rule, race codes, pooling, GBM / post-processing / LFR settings, ExpGrad and DemographicParity
+  library defaults, mapping); prediction code list extended (Scaler, pooling, data-to-design path). Settings moved to
+  named module constants used by the code (GBM_PARAMS, POST_*, LFR_*). scripts/test_specs.py changes one setting at
+  a time (9 settings) and checks that exactly the expected specifications change (all pass).
+- R3-7: fitting split into a shared preparation and one function per model family; a family's fit specification
+  hashes only the shared code and its own family code (test: replacing one family's function changes only that
+  family's specification; gbm and no-race share _fit_gbm).
+- R3-2: derived tables are used only with build provenance (raw-file hashes, build-code hash incl. column selection
+  and types and pandas/pyarrow versions), checked on every load; legacy tables are refused. Both raw files required.
+  Raw-hash log append-only (scripts/log_raw_hashes.sh). Rebuilding 2014-2018 with the current builder in the VM
+  reproduced every table byte for byte (SHA-256 identical, pyarrow content equal), so the reconstruction and all
+  earlier 2014-2018 analyses used the same tables. The Mac run rebuilds them first to write the provenance records;
+  copies of the build records are committed in results/data_provenance/.
+- A3-1: archive package built by scripts/verify_archive.py build (code, plan, results, logs, all model files);
+  verify opens the package, hashes every member, requires the full inventory incl. every model file against the
+  archived manifest, requires identical local copies, checks the Zenodo record and a manual Software Heritage check.
+  scripts/test_archive.py (mocked record): incomplete package, altered model, wrong checksum, missing SWH check and
+  changed local file all fail; complete package passes.
+- A3-2: provenance records the SHA-256 of every consumed input (upstream results, split calibration, data tables,
+  CPI); check_outputs reports a result stale when any input changed; test scripts record their own hash. Lineage
+  regression test in test_specs.py.
+- A3-3: the plan no longer claims error control conditional on the realised constants; the joint simulation is
+  described as unconditional operating characteristics, now with negative and positive theta, a trend history,
+  null-conditioned rates with denominators, Monte Carlo SEs, and the runner's seed-mean SE convention.
+- A3-4: only a complete validation run writes the registered file; check_outputs recomputes every acceptance
+  criterion from the detailed rows and requires complete case grids.
+- A3-5: balance gate adds a support criterion (group ESS >= 50% of rows), caps the balance tolerance at 0.05 and
+  gates each categorical feature's total-variation distance (0.05 + its expected value under sampling noise). Real
+  2014 -> 2018: all groups fail before reweighting, pass after (ESS 97-98%, largest TVD 0.028 vs limit 0.070).
+  Synthetic tests: concentrated weights and rare-category mass shift fail; balanced case passes.
+- A3-6: split calibration uses the number of valid splits for each bound, requires >= 95% valid splits in every
+  configuration and metric (else the step fails), and is described as approximate.
+- Full rehearsal with the final code (sandbox; synthetic later years; 30 trees): Stage A gate passes except the
+  split calibration, which correctly fails in the sandbox because a 60,000-row sample leaves some 20% splits of a
+  middle state with no Black person above $50,000 (in the real 2018 data the smallest of the 20 states has 130 such
+  persons, about 26 per split). Stage B gate passes apart from P1 (skipped for time).

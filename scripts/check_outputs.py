@@ -53,8 +53,43 @@ def fresh(rel, prov, current):
             problems.append(f"{rel}: produced with a different {k.replace('_sha256', '')} (stale; rerun that step)")
     if prov.get("code_sha256") != code_sha(prov.get("script", "")):
         problems.append(f"{rel}: code of {prov.get('script')} or src/ changed since it was produced (rerun that step)")
+    from pipeline import stale_inputs
+    for inp in stale_inputs(prov):
+        problems.append(f"{rel}: input {inp} changed since it was produced (rerun that step)")
     if prov.get("smoke"):
         problems.append(f"{rel}: produced in smoke mode")
+
+
+def check_validation(val):
+    """Recompute the acceptance criteria from the detailed validation results and require complete case grids
+    (QA 3, A3-4); the summary booleans in the file are not trusted."""
+    acc = val.get("acceptance", {})
+    for wt in WT:
+        r = val.get(wt, {})
+        tw = r.get("three_way", {})
+        need(set(tw) == {"C1", "C2", "C3", "C4", "C5", "C6", "C5_secondary"}, f"validation[{wt}]: three-way claims")
+        for c, v in tw.items():
+            need(len(v.get("rows", [])) == 9, f"validation[{wt}] {c}: 9 theta values")
+            if not c.endswith("secondary"):
+                need(all(row["p_holds"] <= ALPHA / 2 + 1e-9 for row in v.get("rows", [])
+                         if row["theta_over_margin"] >= 1), f"validation[{wt}] {c}: false holds above alpha/2")
+        c7 = r.get("C7", [])
+        need(len(c7) == (3 if wt == "unweighted" else 1), f"validation[{wt}]: C7 settings")
+        for x in c7:
+            rows = x.get("rows", [])
+            need(len(rows) >= 30, f"validation[{wt}] C7 {x.get('label')}: grid too small")
+            need(rows and min(rw["coverage"] for rw in rows) >= 1 - ALPHA, f"validation[{wt}] C7 {x.get('label')}: coverage")
+        jt = r.get("joint", {})
+        need(set(jt) == {"C1", "C2", "C3", "C4", "C6"}, f"validation[{wt}]: joint simulation claims")
+        for c, v in jt.items():
+            rows, n = v.get("rows", []), v.get("reps", 0)
+            need(len(rows) == 33 and n >= 20000, f"validation[{wt}] joint {c}: 3 histories x 11 thetas, >= 20000 reps")
+            for rw in rows:
+                need(rw["p_false_holds"] <= ALPHA / 2 + 3 * np.sqrt(ALPHA / 2 * (1 - ALPHA / 2) / max(n, 1)),
+                     f"validation[{wt}] joint {c} {rw['history']} theta={rw['theta']}: false holds")
+                need(rw["p_false_violated"] <= ALPHA + 3 * np.sqrt(ALPHA * (1 - ALPHA) / max(n, 1)),
+                     f"validation[{wt}] joint {c} {rw['history']} theta={rw['theta']}: false violated")
+    need(abs(acc.get("three_way_false_holds_max", 0) - ALPHA / 2) < 1e-12, "validation: registered acceptance values")
 
 
 def stage_a(current):
@@ -73,8 +108,20 @@ def stage_a(current):
     for f in ("results/reconstruction/comparison.csv", "results/reconstruction/figure4_digitised.json",
               "results/reconstruction/figure13_digitised.json", "results/harmonisation/occp_group_shares.csv",
               "results/harmonisation/occp_group_jumps_by_group.csv", "docs/harmonisation_provenance.md",
-              "prereg/OUTPUT_CHECKLIST.md"):
+              "prereg/OUTPUT_CHECKLIST.md", *[f"results/data_provenance/acsincome_{y}.json" for y in range(2014, 2019)]):
         need((ROOT / f).exists(), f"missing file {f}")
+    import data as D
+    for y in range(2014, 2019):              # derived tables: build provenance current (QA 3, R3-2)
+        try:
+            D.assert_derived_current(y)
+        except Exception as e:                             # noqa: BLE001
+            problems.append(f"derived table {y}: {e}")
+        dp = ROOT / "results" / "data_provenance" / f"acsincome_{y}.json"
+        if dp.exists():
+            m = json.loads(dp.read_text())
+            need(m.get("build_spec_sha256") == D.build_spec_sha(), f"data provenance {y}: other build specification")
+            need(m.get("sha256_parquet") == D._sha256(ROOT / "data" / "derived" / f"acsincome_{y}.parquet"),
+                 f"data provenance {y}: table differs from its build record")
     h = load("results/harmonisation/report_2014_2018.json")
     if h:
         need(h["occp_crosswalk"].get("destination_group_matches_crosswalk") is True, "harmonisation: destination check")
@@ -116,23 +163,29 @@ def stage_a(current):
     val = load("results/validation/inference_validation.json")
     if val:
         fresh("inference_validation.json", val.get("provenance"), current)
+        need(val.get("complete_run") is True, "inference validation: must come from one complete run")
         need(abs(val.get("alpha_per_test", 0) - ALPHA) < 1e-12, "inference validation: alpha equals family alpha")
-        acc = val.get("acceptance_passed", {})
-        need(len(acc) == 6 and all(acc.values()), f"inference validation acceptance: {acc}")
+        check_validation(val)
     sv = load("results/validation/split_variance.json")
     if sv:
         fresh("split_variance.json", sv.get("provenance"), current)
+        need(sv.get("calibration_failures") == [], f"split-variance calibration failures: {sv.get('calibration_failures')}")
+        need(len(sv.get("configurations", {})) == 15, "split-variance calibration: 15 configurations")
         need(all(np.isfinite(sv.get("multipliers", {}).get(wt, {}).get(m, np.nan)) for wt in WT for m in METRICS),
              "split-variance multipliers")
+    from pipeline import sha256_file
     it = load("results/validation/integrity_tests.json")
     if it:
         need(all("NOT " not in str(v) for k, v in it.items() if not k.startswith("_")), "integrity tests all detected")
-    ft = load("results/validation/fetch_tests.json")
-    if ft:
-        need(ft.get("all_passed") is True, "download integrity tests")
-    at = load("results/validation/analysis_tests.json")
-    if at:
-        need(at.get("all_passed") is True, "estimator and decision-rule tests")
+        need(it.get("_script_sha256") == sha256_file(ROOT / "scripts" / "test_integrity.py"),
+             "integrity tests: produced by another version of the test script")
+    for f, script in (("fetch_tests.json", "test_fetch.sh"), ("analysis_tests.json", "test_analysis.py"),
+                      ("spec_tests.json", "test_specs.py"), ("archive_tests.json", "test_archive.py")):
+        r = load(f"results/validation/{f}")
+        if r:
+            need(r.get("all_passed") is True, f"{f}: not all passed")
+            need(r.get("script_sha256") == sha256_file(ROOT / "scripts" / script),
+                 f"{f}: produced by another version of {script}")
 
 
 def stage_b(current):

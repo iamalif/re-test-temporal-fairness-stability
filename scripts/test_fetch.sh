@@ -23,7 +23,7 @@ head -c 60 "$T/g.zip.part" > "$T/tr.zip.part"; check truncated_zip reject "$T/tr
 printf '%%PDF-1.4\nbody\n%%%%EOF\n' > "$T/g.pdf.part"; check valid_pdf accept "$T/g.pdf.part" g.pdf
 printf '\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1rest' > "$T/g.xls.part"; check valid_xls accept "$T/g.xls.part" g.xls
 mkdir -p results/validation
-echo "${out%,}, \"all_passed\": $([ $fail -eq 0 ] && echo true || echo false)}" > results/validation/fetch_tests.json
+echo "${out%,}, \"all_passed\": $([ $fail -eq 0 ] && echo true || echo false), \"script_sha256\": \"$(shasum -a 256 scripts/test_fetch.sh | cut -d' ' -f1)\"}" > results/validation/fetch_tests.json
 cat results/validation/fetch_tests.json
 rm -rf "$T"
 exit $fail

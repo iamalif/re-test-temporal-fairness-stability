@@ -21,14 +21,18 @@ Enforced by `scripts/check_outputs.py stage_a|stage_b` (exits non-zero on any mi
 | 10 | Integrity tests (tampering, stale artifacts, person swap within a household, failing workers) | `results/validation/integrity_tests.json` |
 | 10 | Estimator and decision-rule tests (synthetic) | `results/validation/analysis_tests.json` |
 | 10 | Download integrity tests (synthetic) | `results/validation/fetch_tests.json` |
+| 4, 10 | Specification-sensitivity and lineage tests | `results/validation/spec_tests.json` |
+| 10 | Archive-verifier tests (synthetic package, mocked Zenodo record) | `results/validation/archive_tests.json` |
+| 3 | Derived tables 2014–2018 with build provenance (raw-file hashes, build-code hash; byte-identical rebuild) | `results/data_provenance/acsincome_<year>.json` (committed and archived; the copy in `data/derived/` is checked on every load) |
 | Reconstruction | 56-run inventory, comparison, figure, macros | `results/reconstruction/runs.jsonl`, `comparison.csv`, `paper/figures/reconstruction.pdf`, `paper/numbers_reconstruction.tex` |
 
 ## Archive (between the stages)
 
 | Item | File |
 |---|---|
-| Zenodo DOI, Software Heritage ID, SHA-256 and MD5 of every deposited file, SHA-256 of the package contents | `prereg/ARCHIVE_RECEIPT.json` |
-| Guard flag, created by `scripts/verify_archive.py --create-flag` only after the receipt is verified against the local files and the public Zenodo record | `prereg/ARCHIVED` |
+| Archive package (code, plan, results, logs, all frozen model files) | `archive/package.zip` (`scripts/verify_archive.py build`) |
+| Zenodo record and DOI, Software Heritage ID and date of its manual check, SHA-256, MD5 and size of the package | `prereg/ARCHIVE_RECEIPT.json` |
+| Guard flag, created by `scripts/verify_archive.py verify --create-flag` only after the package members, local copies, Zenodo record and Software Heritage check are verified | `prereg/ARCHIVED` |
 
 ## Stage B (after archiving)
 

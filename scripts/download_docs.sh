@@ -16,7 +16,7 @@ while read -r f; do fetch "$VC$f" "data/raw/variable_changes/$f"; done < data/ra
 cpi_rc=0
 fetch https://www.bls.gov/cpi/research-series/r-cpi-u-rs-allitems.xlsx data/raw/cpi/r-cpi-u-rs-allitems.xlsx \
   -A "Mozilla/5.0 (research; contact via GitHub iamalif)" || cpi_rc=3
-find data/raw -type f ! -name '_files.txt' ! -name '*.part' -print0 | sort -z | xargs -0 shasum -a 256 > logs/raw_sha256.txt
+bash scripts/log_raw_hashes.sh
 cat data/raw/variable_changes/_files.txt; ls -la data/raw/cpi; wc -l logs/raw_sha256.txt
 if [ $cpi_rc -ne 0 ]; then
   echo "CPI file missing: download https://www.bls.gov/cpi/research-series/r-cpi-u-rs-allitems.xlsx in a browser" \

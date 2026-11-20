@@ -47,7 +47,20 @@
   "c7_interval_contains_point": {
    "passed": true,
    "detail": ""
+  },
+  "balance_passes_identical_distributions": {
+   "passed": true,
+   "detail": "smd=0.0077"
+  },
+  "balance_fails_concentrated_weights": {
+   "passed": true,
+   "detail": "ess_fraction=0.0005, limit=0.050"
+  },
+  "balance_fails_shift_among_rare_categories": {
+   "passed": true,
+   "detail": "max indicator smd=0.0029 (rare categories < 1% excluded), tvd=0.243"
   }
  },
- "all_passed": true
+ "all_passed": true,
+ "script_sha256": "0bf07a11fc6d7bf52401af74cab2e1c39d01df138348ad2296bde8b780fd42a5"
 }

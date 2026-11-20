@@ -97,10 +97,42 @@ for df_, da in [(0.0, 0.0), (0.01, -0.02), (-0.005, 0.0)]:
     ok &= r["ci"][0] <= abs(df_) / 0.02 - abs(da) / 0.015 <= r["ci"][1]
 record("c7_interval_contains_point", ok)
 
+# 8. decomposition balance gate (QA 3, A3-5): synthetic failures must fail, a balanced case must pass
+sys.path.insert(0, str(ROOT / "scripts"))
+from stage_b_secondary import balance  # noqa: E402
+from harmonise import HARMONISED_FEATURES  # noqa: E402
+nf = len(HARMONISED_FEATURES)
+j_pob, j_age = HARMONISED_FEATURES.index("POBP_H"), HARMONISED_FEATURES.index("AGEP")
+
+
+def sample(n, pob_probs):
+    X = np.zeros((n, nf))
+    X[:, j_age] = rng.normal(40, 12, n)
+    X[:, j_pob] = rng.choice(len(pob_probs), n, p=pob_probs)
+    return X
+
+
+base = np.ones(300) / 300
+X0, X1 = sample(20000, base), sample(40000, base)
+m0, m1 = np.ones(len(X0), bool), np.ones(len(X1), bool)
+ok_case = balance(X0, np.ones(len(X0)), X1, m0, m1)
+record("balance_passes_identical_distributions", ok_case["passes"], f"smd={ok_case['max_smd']:.4f}")
+wc = np.ones(len(X0)); wc[:10] = 1e5                 # weights concentrated on 10 rows: no effective support
+conc = balance(X0, wc, X1, m0, m1)
+record("balance_fails_concentrated_weights", (not conc["passes"]) and not conc["ess_ok"],
+       f"ess_fraction={conc['ess_fraction']:.4f}, limit={conc['limit']:.3f}")
+shift = base.copy(); shift[:150] *= 0.5; shift[150:] *= 1.5; shift /= shift.sum()   # mass moved among rare categories
+X1s = sample(40000, shift)
+rare = balance(X0, np.ones(len(X0)), X1s, m0, np.ones(len(X1s), bool))
+record("balance_fails_shift_among_rare_categories", (not rare["passes"]) and rare["smd_ok"] and not rare["tvd_ok"],
+       f"max indicator smd={rare['max_smd']:.4f} (rare categories < 1% excluded), tvd={rare['tvd']['POBP_H']:.3f}")
+
 passed = all(v["passed"] for v in results.values())
 for k, v in results.items():
     print(f"{k:50s} {'ok' if v['passed'] else 'FAILED'}  {v['detail']}")
 out = ROOT / "results" / "validation"
 out.mkdir(parents=True, exist_ok=True)
-(out / "analysis_tests.json").write_text(json.dumps({"tests": results, "all_passed": passed}, indent=1))
+(out / "analysis_tests.json").write_text(json.dumps({"tests": results, "all_passed": passed,
+                                                     "script_sha256": __import__("hashlib").sha256(
+                                                         Path(__file__).read_bytes()).hexdigest()}, indent=1))
 sys.exit(0 if passed else 1)

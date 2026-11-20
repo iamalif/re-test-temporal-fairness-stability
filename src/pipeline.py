@@ -56,6 +56,11 @@ TRAIN_YEAR = 2014
 N_TREES = 100
 SEEDS = (0, 1, 2, 3, 4)
 GROUPS = {"race": "RAC1P", "sex": "SEX"}
+GBM_PARAMS = {"loss": "exponential", "max_depth": 5}          # plus n_estimators = N_TREES
+POST_OBJECTIVE = "accuracy_score"
+POST_CONSTRAINTS = {"dp": "demographic_parity", "eo": "true_positive_rate_parity"}
+LFR_PARAMS = {"k": 10, "Ax": 0.1, "Ay": 1.0, "Az": 2.0}
+LFR_FIT = {"maxiter": 5000, "maxfun": 5000}
 N_STATES = 20
 
 SMOKE = os.environ.get("RT_SMOKE_ROWS")   # smoke tests only: small subsample, separate output folders
@@ -100,7 +105,7 @@ class Scaler:
 
 def base_model(seed: int):
     from sklearn.ensemble import GradientBoostingClassifier
-    return GradientBoostingClassifier(loss="exponential", max_depth=5, n_estimators=N_TREES, random_state=seed)
+    return GradientBoostingClassifier(**GBM_PARAMS, n_estimators=N_TREES, random_state=seed)
 
 
 # ---------------- fitted predictors ----------------
@@ -174,8 +179,8 @@ def _aif_dataset(X, y, race):
 
 def _post(gbm, X, y, sens, constraint):
     from fairlearn.postprocessing import ThresholdOptimizer
-    t = ThresholdOptimizer(estimator=gbm, prefit=True, predict_method="predict_proba", objective="accuracy_score",
-                           constraints={"dp": "demographic_parity", "eo": "true_positive_rate_parity"}[constraint])
+    t = ThresholdOptimizer(estimator=gbm, prefit=True, predict_method="predict_proba", objective=POST_OBJECTIVE,
+                           constraints=POST_CONSTRAINTS[constraint])
     return t.fit(X, y, sensitive_features=sens)
 
 
@@ -207,22 +212,47 @@ def _versions() -> dict:
             "sklearn": sklearn.__version__, "fairlearn": fairlearn.__version__, "aif360": aif360.__version__}
 
 
-def fit_spec(job: dict) -> dict:
-    """Everything that determines a fitted model: job, features and mappings, hyperparameters, training data,
-    split algorithm, fitting code and library versions (QA 2, R1). Its hash is stored with each model and compared
-    on resume; any difference means the model is refitted."""
+def semantic_config() -> dict:
+    """Every configuration value that changes what a model learns or predicts, serialised by value (QA 3, R3-1):
+    feature sets, group columns, label threshold and rule, race codes, pooling rule, estimator and intervention
+    settings (including the library defaults of ExpGrad and its constraint)."""
+    import common
+    from fairlearn.reductions import DemographicParity, ExponentiatedGradient
+    eg = {k: v for k, v in ExponentiatedGradient(base_model(0), constraints=DemographicParity()).get_params().items()
+          if k not in ("estimator", "constraints")}
+    dp = {k: v for k, v in DemographicParity().get_params().items()} if hasattr(DemographicParity(), "get_params") \
+        else {}
+    return {"FEATURE_SETS": FEATURE_SETS, "GROUPS": GROUPS, "THRESHOLD": common.THRESHOLD, "LABEL_RULE": ">",
+            "WHITE": common.WHITE, "BLACK": common.BLACK, "TRAIN_YEAR": TRAIN_YEAR, "N_TREES": N_TREES,
+            "GBM_PARAMS": GBM_PARAMS, "POOLING": {"POOLED": POOLED, "MIN_ROWS": MIN_ROWS,
+                                                  "MIN_EACH_LABEL": MIN_EACH_LABEL},
+            "POST": {"objective": POST_OBJECTIVE, "constraints": POST_CONSTRAINTS},
+            "LFR": {"params": LFR_PARAMS, "fit": LFR_FIT}, "EXPGRAD": eg, "DEMOGRAPHIC_PARITY": dp,
+            "MAPPING_SHA256": mapping_fingerprint()}
+
+
+def _shared_code() -> list:
+    """Functions on the path from a data file to a design matrix, used by fitting and by prediction."""
+    import common
     import harmonise as H
-    from common import folktables_matrix as fm
-    feats = job_features(job)
-    gb = {k: v for k, v in base_model(job["seed"]).get_params().items()}
-    return {"job": {k: job[k] for k in sorted(job)}, "features": FEATURE_SETS[feats],
-            "mapping_sha256": mapping_fingerprint() if feats.startswith("harmonised") else None,
-            "gbm_params": gb, "pooling": [MIN_ROWS, MIN_EACH_LABEL, POOLED],
+    return [year_frame, design, common.folktables_matrix, common.load_year, H.harmonise, H.occp_group_map,
+            H.group_codes, H.dictionary, H.dictionary_file, Scaler, pool_categories]
+
+
+def fit_spec(job: dict) -> dict:
+    """Everything that determines a fitted model (QA 2 R1, QA 3 R3-1/R3-7): job, semantic configuration by value,
+    training-data hash, split code, the shared data-to-design code, and the code of this job's model family only
+    (so a change to one family's fitting code does not invalidate the others), library versions."""
+    import common
+    fam = FIT_FAMILY[job["kind"]]
+    family_code = [globals()[fam]] + [globals()[h] for h in FAMILY_HELPERS[fam]]
+    return {"job": {k: job[k] for k in sorted(job)}, "features": FEATURE_SETS[job_features(job)],
+            "config": semantic_config(), "gbm_params": base_model(job["seed"]).get_params(),
             "train_data_sha256": data_sha(job.get("train_year", TRAIN_YEAR)), "smoke": SMOKE,
-            "split_code": _ast_hash(state_split),
-            "fit_code": _ast_hash(fit_job, base_model, _post, kept_categories, pool_categories, Scaler, _aif_dataset,
-                                  design, year_frame, fm, H.harmonise, label),
-            "versions": _versions()}
+            "split_code": _ast_hash(common.state_split),
+            "shared_code": _ast_hash(_prepare, kept_categories, base_model, common.label, job_features,
+                                     *_shared_code()),
+            "family_code": _ast_hash(*family_code), "versions": _versions()}
 
 
 def fit_spec_sha(job: dict) -> str:
@@ -235,13 +265,11 @@ def expected_specs() -> dict:
 
 
 def pred_spec_sha() -> str:
-    """Prediction convention and the code that turns a frozen model and a data frame into predictions."""
-    import harmonise as H
-    from common import folktables_matrix as fm
-    spec = {"convention": PRED_CONVENTION, "mapping": mapping_fingerprint(),
-            "code": _ast_hash(Frozen, design, year_frame, fm, H.harmonise, pool_categories, _aif_dataset, row_key),
-            "versions": _versions()}
-    return hashlib.sha256(json.dumps(spec, sort_keys=True).encode()).hexdigest()
+    """Prediction convention, semantic configuration by value, and the code that turns a frozen model and a data
+    frame into predictions (including the per-year scaler and the sensitive-feature pooling)."""
+    spec = {"convention": PRED_CONVENTION, "config": semantic_config(),
+            "code": _ast_hash(Frozen, _aif_dataset, row_key, *_shared_code()), "versions": _versions()}
+    return hashlib.sha256(json.dumps(spec, sort_keys=True, default=str).encode()).hexdigest()
 
 
 def mapping_fingerprint() -> str:
@@ -285,8 +313,8 @@ def job_features(job: dict) -> str:
     return "raw" if job["kind"] == "rawgbm" else job.get("features", "harmonised")
 
 
-def fit_job(job: dict) -> list[dict]:
-    """Fit the models of one job on its training year (default 2014) and save them. Returns manifest entries."""
+def _prepare(job: dict) -> dict:
+    """Training data of a job: its training year (default 2014), within-state split of its seed, optional state."""
     seed = job["seed"]
     train_year = job.get("train_year", TRAIN_YEAR)
     df = year_frame(train_year)
@@ -295,56 +323,77 @@ def fit_job(job: dict) -> list[dict]:
         keep = (df["ST"] == job["state"]).to_numpy()
         df, test = df[keep].reset_index(drop=True), test[keep]
     tr = ~test
-    y = label(df)
     feats = job_features(job)
     X = design(df, feats)
     scaler = Scaler(X[tr])
-    Xs = scaler(X)
-    out, t0 = [], time.time()
-    prefix = model_prefix(job)
-    spec = fit_spec_sha(job)
-    if job["kind"] == "peryear":
-        # per-year-scaling pipeline (secondary 8.6): scaler fitted on all eligible rows of the training year;
-        # at prediction time every year is standardised with its own full-population scaler
-        full = Scaler(X)
-        gbm = base_model(seed).fit(full(X)[tr], y[tr])
-        fz = Frozen(f"peryear_gbm_s{seed}", feats, full, "gbm", gbm, seed=seed)
-        fz.scaling = "per_year"
-        out.append(_save(fz, time.time() - t0, tr.sum(), train_year, spec))
-    elif job["kind"] in ("gbm", "rawgbm"):
-        gbm = base_model(seed).fit(Xs[tr], y[tr])
-        name = f"{prefix}{'rawgbm' if feats == 'raw' else 'gbm'}_s{seed}"
-        out.append(_save(Frozen(name, feats, scaler, "gbm", gbm, seed=seed), time.time() - t0, tr.sum(), train_year, spec))
-        for group, constraint in job.get("post", []):
-            t1 = time.time()
-            raw_sens = df[GROUPS[group]].to_numpy().astype(int)
-            keep = kept_categories(raw_sens[tr], y[tr])
-            sens = pool_categories(raw_sens, keep)
-            post = _post(gbm, Xs[tr], y[tr], sens[tr], constraint)
-            fz = Frozen(f"{prefix}post_{constraint}_{group}_s{seed}", feats, scaler, "post", post, group, seed,
-                        keep=keep)
-            out.append(_save(fz, time.time() - t1, tr.sum(), train_year, spec))
-    elif job["kind"] == "expgrad":
-        from fairlearn.reductions import DemographicParity, ExponentiatedGradient
-        raw_sens = df["RAC1P"].to_numpy().astype(int)
+    return {"seed": seed, "train_year": train_year, "df": df, "tr": tr, "y": label(df), "feats": feats, "X": X,
+            "scaler": scaler, "Xs": scaler(X), "prefix": model_prefix(job)}
+
+
+def _fit_peryear(job: dict, c: dict, spec: str) -> list[dict]:
+    # per-year-scaling pipeline (secondary 8.6): scaler fitted on all eligible rows of the training year;
+    # at prediction time every year is standardised with its own full-population scaler
+    t0 = time.time()
+    full = Scaler(c["X"])
+    gbm = base_model(c["seed"]).fit(full(c["X"])[c["tr"]], c["y"][c["tr"]])
+    fz = Frozen(f"peryear_gbm_s{c['seed']}", c["feats"], full, "gbm", gbm, seed=c["seed"])
+    fz.scaling = "per_year"
+    return [_save(fz, time.time() - t0, c["tr"].sum(), c["train_year"], spec)]
+
+
+def _fit_gbm(job: dict, c: dict, spec: str) -> list[dict]:
+    t0, tr, y, seed = time.time(), c["tr"], c["y"], c["seed"]
+    gbm = base_model(seed).fit(c["Xs"][tr], y[tr])
+    name = f"{c['prefix']}{'rawgbm' if c['feats'] == 'raw' else 'gbm'}_s{seed}"
+    out = [_save(Frozen(name, c["feats"], c["scaler"], "gbm", gbm, seed=seed), time.time() - t0, tr.sum(),
+                 c["train_year"], spec)]
+    for group, constraint in job.get("post", []):
+        t1 = time.time()
+        raw_sens = c["df"][GROUPS[group]].to_numpy().astype(int)
         keep = kept_categories(raw_sens[tr], y[tr])
-        eg = ExponentiatedGradient(base_model(seed), constraints=DemographicParity())
-        eg.fit(Xs[tr], y[tr], sensitive_features=pool_categories(raw_sens, keep)[tr])
-        out.append(_save(Frozen(f"expgrad_dp_race_s{seed}", feats, scaler, "expgrad", eg, "race", seed,
-                                keep=keep), time.time() - t0, tr.sum(), train_year, spec))
-    elif job["kind"] == "lfr":
-        from aif360.algorithms.preprocessing import LFR
-        race = df["RAC1P"].to_numpy()
-        ds = _aif_dataset(Xs[tr], y[tr], race[tr])
-        lfr = LFR(unprivileged_groups=[{"white": 0.0}], privileged_groups=[{"white": 1.0}],
-                  k=10, Ax=0.1, Ay=1.0, Az=2.0, seed=seed, verbose=0)
-        lfr.fit(ds, maxiter=5000, maxfun=5000)
-        gbm = base_model(seed).fit(lfr.transform(ds).features, y[tr])
-        out.append(_save(Frozen(f"lfr_race_s{seed}", feats, scaler, "lfr", gbm, "race", seed, lfr=lfr),
-                         time.time() - t0, tr.sum(), train_year, spec))
-    else:
-        raise ValueError(job)
+        sens = pool_categories(raw_sens, keep)
+        post = _post(gbm, c["Xs"][tr], y[tr], sens[tr], constraint)
+        fz = Frozen(f"{c['prefix']}post_{constraint}_{group}_s{seed}", c["feats"], c["scaler"], "post", post, group,
+                    seed, keep=keep)
+        out.append(_save(fz, time.time() - t1, tr.sum(), c["train_year"], spec))
     return out
+
+
+def _fit_expgrad(job: dict, c: dict, spec: str) -> list[dict]:
+    from fairlearn.reductions import DemographicParity, ExponentiatedGradient
+    t0, tr, y, seed = time.time(), c["tr"], c["y"], c["seed"]
+    raw_sens = c["df"][GROUPS["race"]].to_numpy().astype(int)
+    keep = kept_categories(raw_sens[tr], y[tr])
+    eg = ExponentiatedGradient(base_model(seed), constraints=DemographicParity())
+    eg.fit(c["Xs"][tr], y[tr], sensitive_features=pool_categories(raw_sens, keep)[tr])
+    return [_save(Frozen(f"expgrad_dp_race_s{seed}", c["feats"], c["scaler"], "expgrad", eg, "race", seed, keep=keep),
+                  time.time() - t0, tr.sum(), c["train_year"], spec)]
+
+
+def _fit_lfr(job: dict, c: dict, spec: str) -> list[dict]:
+    from aif360.algorithms.preprocessing import LFR
+    t0, tr, y, seed = time.time(), c["tr"], c["y"], c["seed"]
+    race = c["df"][GROUPS["race"]].to_numpy()
+    ds = _aif_dataset(c["Xs"][tr], y[tr], race[tr])
+    lfr = LFR(unprivileged_groups=[{"white": 0.0}], privileged_groups=[{"white": 1.0}], **LFR_PARAMS, seed=seed,
+              verbose=0)
+    lfr.fit(ds, **LFR_FIT)
+    gbm = base_model(seed).fit(lfr.transform(ds).features, y[tr])
+    return [_save(Frozen(f"lfr_race_s{seed}", c["feats"], c["scaler"], "lfr", gbm, "race", seed, lfr=lfr),
+                  time.time() - t0, tr.sum(), c["train_year"], spec)]
+
+
+FIT_FAMILY = {"gbm": "_fit_gbm", "rawgbm": "_fit_gbm", "peryear": "_fit_peryear", "expgrad": "_fit_expgrad",
+              "lfr": "_fit_lfr"}
+FAMILY_HELPERS = {"_fit_gbm": ("_post",), "_fit_lfr": ("_aif_dataset",), "_fit_peryear": (), "_fit_expgrad": ()}
+
+
+def fit_job(job: dict) -> list[dict]:
+    """Fit the models of one job on its training year (default 2014) and save them. Returns manifest entries."""
+    if job["kind"] not in FIT_FAMILY:
+        raise ValueError(job)
+    spec = fit_spec_sha(job)
+    return globals()[FIT_FAMILY[job["kind"]]](job, _prepare(job), spec)
 
 
 def stage_a_jobs() -> list[dict]:
@@ -516,9 +565,11 @@ def code_fingerprint() -> str:
     return h.hexdigest()
 
 
-def provenance(script: str | None = None) -> dict:
+def provenance(script: str | None = None, inputs: list | None = None) -> dict:
     """Identity of the inputs of a result file: model manifest, prediction specification, git commit and the code
-    that produced it (src/*.py plus the producing script). check_outputs.py compares these with the current state."""
+    that produced it (src/*.py plus the producing script), and the SHA-256 of every consumed input file (upstream
+    result files, calibration files, data files, price index), so that a change upstream makes it stale (QA 3,
+    A3-2). check_outputs.py compares all of these with the current state."""
     import inspect
     import subprocess
     root = Path(__file__).resolve().parents[1]
@@ -533,7 +584,23 @@ def provenance(script: str | None = None) -> dict:
     return {"models_manifest_sha256": sha256_file(MANIFEST) if MANIFEST.exists() else None,
             "pred_spec_sha256": _pred_spec(), "git_commit": commit, "git_dirty_code": dirty,
             "script": script, "code_sha256": code_sha(script), "smoke": bool(SMOKE),
+            "inputs": {rel: sha256_file(root / rel) for rel in (inputs or [])},
             "time": time.strftime("%Y-%m-%dT%H:%M:%S")}
+
+
+def stale_inputs(prov: dict) -> list:
+    """Inputs recorded in a provenance block whose current bytes differ (or that no longer exist)."""
+    root = Path(__file__).resolve().parents[1]
+    out = []
+    for rel, h in (prov.get("inputs") or {}).items():
+        p = root / rel
+        if not p.exists() or sha256_file(p) != h:
+            out.append(rel)
+    return out
+
+
+def data_files(years) -> list:
+    return [f"data/derived/acsincome_{y}.parquet" for y in years]
 
 
 def code_sha(script: str) -> str:

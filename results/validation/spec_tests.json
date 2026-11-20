@@ -1,0 +1,230 @@
+{
+ "tests": {
+  "GROUPS sex column": {
+   "passed": true,
+   "fit_specs_changed": [
+    "expgrad",
+    "gbm",
+    "lfr",
+    "norace",
+    "peryear"
+   ],
+   "expected": [
+    "expgrad",
+    "gbm",
+    "lfr",
+    "norace",
+    "peryear"
+   ],
+   "pred_spec_changed": true,
+   "expected_pred_change": true
+  },
+  "feature set": {
+   "passed": true,
+   "fit_specs_changed": [
+    "expgrad",
+    "gbm",
+    "lfr",
+    "norace",
+    "peryear"
+   ],
+   "expected": [
+    "expgrad",
+    "gbm",
+    "lfr",
+    "norace",
+    "peryear"
+   ],
+   "pred_spec_changed": true,
+   "expected_pred_change": true
+  },
+  "label threshold": {
+   "passed": true,
+   "fit_specs_changed": [
+    "expgrad",
+    "gbm",
+    "lfr",
+    "norace",
+    "peryear"
+   ],
+   "expected": [
+    "expgrad",
+    "gbm",
+    "lfr",
+    "norace",
+    "peryear"
+   ],
+   "pred_spec_changed": true,
+   "expected_pred_change": true
+  },
+  "race code WHITE": {
+   "passed": true,
+   "fit_specs_changed": [
+    "expgrad",
+    "gbm",
+    "lfr",
+    "norace",
+    "peryear"
+   ],
+   "expected": [
+    "expgrad",
+    "gbm",
+    "lfr",
+    "norace",
+    "peryear"
+   ],
+   "pred_spec_changed": true,
+   "expected_pred_change": true
+  },
+  "number of trees": {
+   "passed": true,
+   "fit_specs_changed": [
+    "expgrad",
+    "gbm",
+    "lfr",
+    "norace",
+    "peryear"
+   ],
+   "expected": [
+    "expgrad",
+    "gbm",
+    "lfr",
+    "norace",
+    "peryear"
+   ],
+   "pred_spec_changed": true,
+   "expected_pred_change": true
+  },
+  "pooling rule": {
+   "passed": true,
+   "fit_specs_changed": [
+    "expgrad",
+    "gbm",
+    "lfr",
+    "norace",
+    "peryear"
+   ],
+   "expected": [
+    "expgrad",
+    "gbm",
+    "lfr",
+    "norace",
+    "peryear"
+   ],
+   "pred_spec_changed": true,
+   "expected_pred_change": true
+  },
+  "LFR hyperparameter": {
+   "passed": true,
+   "fit_specs_changed": [
+    "expgrad",
+    "gbm",
+    "lfr",
+    "norace",
+    "peryear"
+   ],
+   "expected": [
+    "expgrad",
+    "gbm",
+    "lfr",
+    "norace",
+    "peryear"
+   ],
+   "pred_spec_changed": true,
+   "expected_pred_change": true
+  },
+  "post-processing constraint": {
+   "passed": true,
+   "fit_specs_changed": [
+    "expgrad",
+    "gbm",
+    "lfr",
+    "norace",
+    "peryear"
+   ],
+   "expected": [
+    "expgrad",
+    "gbm",
+    "lfr",
+    "norace",
+    "peryear"
+   ],
+   "pred_spec_changed": true,
+   "expected_pred_change": true
+  },
+  "occupation mapping": {
+   "passed": true,
+   "fit_specs_changed": [
+    "expgrad",
+    "gbm",
+    "lfr",
+    "norace",
+    "peryear"
+   ],
+   "expected": [
+    "expgrad",
+    "gbm",
+    "lfr",
+    "norace",
+    "peryear"
+   ],
+   "pred_spec_changed": true,
+   "expected_pred_change": true
+  },
+  "family isolation _fit_lfr": {
+   "passed": true,
+   "fit_specs_changed": [
+    "lfr"
+   ],
+   "expected": [
+    "lfr"
+   ],
+   "pred_spec_changed": false,
+   "expected_pred_change": false
+  },
+  "family isolation _fit_expgrad": {
+   "passed": true,
+   "fit_specs_changed": [
+    "expgrad"
+   ],
+   "expected": [
+    "expgrad"
+   ],
+   "pred_spec_changed": false,
+   "expected_pred_change": false
+  },
+  "family isolation _fit_peryear": {
+   "passed": true,
+   "fit_specs_changed": [
+    "peryear"
+   ],
+   "expected": [
+    "peryear"
+   ],
+   "pred_spec_changed": false,
+   "expected_pred_change": false
+  },
+  "family isolation _fit_gbm": {
+   "passed": true,
+   "fit_specs_changed": [
+    "gbm",
+    "norace"
+   ],
+   "expected": [
+    "gbm",
+    "norace"
+   ],
+   "pred_spec_changed": false,
+   "expected_pred_change": false
+  },
+  "lineage: changed upstream file makes dependants stale": {
+   "passed": true,
+   "fit_specs_changed": [],
+   "expected": [],
+   "pred_spec_changed": false,
+   "expected_pred_change": false
+  }
+ },
+ "all_passed": true,
+ "script_sha256": "59d2fedccf081177f624ad7137376bb519e6cc8ea081c2018eaf4083d6cf696d"
+}

@@ -37,5 +37,5 @@ get asiaee_aryan2026.pdf      https://arxiv.org/pdf/2602.05144
 get facchini2026.pdf          https://arxiv.org/pdf/2611.20901
 
 # 5. Hashes of every raw file (committed)
-find data/raw -type f ! -name '_files.txt' ! -name '*.part' -print0 | sort -z | xargs -0 shasum -a 256 > logs/raw_sha256.txt
+bash scripts/log_raw_hashes.sh
 echo "Done."; cat data/raw/dictionaries/_files.txt; ls -la $S; wc -l logs/raw_sha256.txt

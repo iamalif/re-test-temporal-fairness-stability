@@ -122,6 +122,7 @@ def main():
     bad = [k for k, v in results.items() if "NOT " in str(v)]
     out = ROOT / "results" / "validation"; out.mkdir(parents=True, exist_ok=True)
     results["_provenance"] = P.provenance()
+    results["_script_sha256"] = P.sha256_file(Path(__file__))
     (out / "integrity_tests.json").write_text(json.dumps(results, indent=1))
     sys.exit(1 if bad else 0)
 

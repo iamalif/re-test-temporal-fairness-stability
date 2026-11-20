@@ -7,9 +7,11 @@ Var = 4/80 * sum_r (theta_r - theta)^2, with covariances computed the same way.
 Unweighted variances are clustered by household (influence values summed within household before squaring);
 they are model-based (households treated as independent draws), not a reconstruction of the full ACS design.
 Estimates for different survey years come from independent samples, so variances of differences add.
-All intervals are large-sample normal approximations. Inference is conditional on the frozen models and on the
-2014-2018 calibration constants (margins delta and epsilon, yardsticks G), fixed numbers frozen before any later
-year is opened.
+All intervals are large-sample normal approximations, conditional on the frozen models. The margins (delta,
+epsilon) and yardsticks (G) are numbers set from the 2014-2018 estimates and frozen before any later year is
+opened; the error rates of the decisions, with the constants set this way, are operating characteristics averaged
+over the historical sampling (scripts/validate_inference.py, joint simulation), not guarantees conditional on the
+realised constants.
 
 Predictions may be hard (0/1) or expected (the probability that a randomised predictor outputs 1). Every metric
 is linear in the prediction, so the same formulas give the expected metric of a randomised policy (prereg 4.4).

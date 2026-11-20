@@ -25,7 +25,8 @@ import pandas as pd
 from analysis import METRICS, REP, change, noise_corrected_abs
 from analysis import estimates as _estimates
 from common import label, load_year, state_split
-from pipeline import MANIFEST, N_STATES, SEEDS, SMOKE, load_pred, provenance, train_year_of, verify_inventory
+from pipeline import (MANIFEST, N_STATES, SEEDS, SMOKE, data_files, load_pred, provenance, train_year_of,
+                      verify_inventory)
 
 YEARS = (2014, 2015, 2016, 2017, 2018)
 FLOOR = 0.01
@@ -145,14 +146,15 @@ def main():
                 geo[(geo.weighting == wt) & (geo.metric == m)].groupby("source")["abs_corrected"].median().items()}
             for m in ("dp_race", "eo_race", "dp_sex", "accuracy")}
     margins["states"] = states
-    margins["provenance"] = provenance()
+    inputs = data_files(YEARS) + ([] if SMOKE else ["results/validation/split_variance.json"])
+    margins["provenance"] = provenance(inputs=inputs)
 
     # ---- recoding artefact at 2018 (raw codes vs harmonised), seed 0 ----
     rec = {}
     for y in YEARS:
         eu_raw, eu_h = est[("rawgbm_s0", y)][0], est[("gbm_s0", y)][0]
         rec[str(y)] = {m: {"raw": eu_raw.values[m], "harmonised": eu_h.values[m]} for m in METRICS}
-    rec["_provenance"] = provenance()
+    rec["_provenance"] = provenance(inputs=inputs)
     (OUT / "recoding_check.json").write_text(json.dumps(rec, indent=1))
     (OUT / "margins.json").write_text(json.dumps(margins, indent=1))
     # estimates of every US model-year (values and covariance), reused by Stage B for the baseline

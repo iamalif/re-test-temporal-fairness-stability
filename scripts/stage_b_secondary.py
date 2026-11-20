@@ -29,7 +29,7 @@ from sklearn.model_selection import StratifiedGroupKFold
 
 from analysis import METRICS, NotComputable, change, estimates, household_ids, point, three_way
 from common import BLACK, WHITE, load_year, state_split
-from pipeline import SEEDS, SMOKE, design, load_pred, provenance, verify_inventory, year_frame
+from pipeline import SEEDS, SMOKE, data_files, design, load_pred, provenance, verify_inventory, year_frame
 
 ALPHA = 0.05                       # secondary: per-analysis level, no family-wise claim
 Y_RACE, Y_SEX = 2019, 2024
@@ -40,9 +40,12 @@ if SMOKE:
     Y_RACE, Y_SEX, YEARS = 2017, 2018, (2014, 2015, 2016, 2017, 2018)
     OUT, STAGE_A = ROOT / "data" / "derived" / "smoke_stage_b", ROOT / "data" / "derived" / "smoke_stage_a"
 CHECK_TOL = 0.005                  # DP falsification check of the decomposition
-BAL_BASE, BAL_K = 0.02, 3.0        # balance after reweighting, per group (D026): the largest SMD over quantitative
-                                   # features and indicators of categories with pooled share >= 1% must not exceed
-                                   # BAL_BASE + BAL_K * sqrt(1/ESS_group + 1/n_target_group) (sampling-noise allowance)
+BAL_BASE, BAL_K, BAL_CAP = 0.02, 3.0, 0.05   # balance after reweighting, per group (D026, D027): the largest SMD
+                                   # over quantitative features and indicators of categories with pooled share >= 1%
+                                   # must not exceed min(BAL_BASE + BAL_K * sqrt(1/ESS + 1/n_target), BAL_CAP)
+ESS_MIN_FRACTION = 0.5             # support: group effective sample size >= 50% of the group's 2014 rows (D027)
+TVD_BASE = 0.05                    # every categorical feature: total-variation distance (all categories, rare ones
+                                   # included) <= TVD_BASE + its expected value under sampling noise alone (D027)
 CAT_MIN_SHARE = 0.01
 QUANT_FEATURES = ("AGEP", "WKHP")  # every other harmonised feature is a nominal or ordinal category code
 CLIP_TOL = 0.005                   # clipping sensitivity: |residual(no clip) - residual(99.9%)|, P2 metrics
@@ -163,7 +166,8 @@ def balance(X0, w, X1, mask0, mask1) -> dict:
     from harmonise import HARMONISED_FEATURES
     a, b = X0[mask0], X1[mask1]
     wa = w[mask0] / w[mask0].sum()
-    worst, where, tvd = 0.0, None, {}
+    ess = float(w[mask0].sum() ** 2 / (w[mask0] ** 2).sum())
+    worst, where, tvd, tvd_noise = 0.0, None, {}, {}
     for j, f in enumerate(HARMONISED_FEATURES):
         x0, x1 = a[:, j], b[:, j]
         if f in QUANT_FEATURES:
@@ -178,16 +182,28 @@ def balance(X0, w, X1, mask0, mask1) -> dict:
         p1 = np.array([(x1 == c).mean() for c in cats])
         tvd[f] = float(np.abs(p0 - p1).sum() / 2)
         pp = (p0 + p1) / 2
+        tvd_noise[f] = _tvd_noise(pp, ess, len(x1))
         ok = (pp >= CAT_MIN_SHARE) & (pp * (1 - pp) > 0)
         if ok.any():
             v = np.abs(p0 - p1)[ok] / np.sqrt(pp[ok] * (1 - pp[ok]))
             i = int(np.argmax(v))
             if v[i] > worst:
                 worst, where = float(v[i]), f"{f}={cats[ok][i]:g}"
-    ess = float(w[mask0].sum() ** 2 / (w[mask0] ** 2).sum())
-    limit = BAL_BASE + BAL_K * np.sqrt(1 / ess + 1 / max(int(mask1.sum()), 1))
-    return {"max_smd": float(worst), "worst": where, "tvd": tvd, "ess": ess, "n_target": int(mask1.sum()),
-            "limit": float(limit), "passes": bool(worst <= limit)}
+    limit = min(BAL_BASE + BAL_K * np.sqrt(1 / ess + 1 / max(int(mask1.sum()), 1)), BAL_CAP)
+    tvd_limit = {f: TVD_BASE + tvd_noise[f] for f in tvd}
+    tvd_ok = all(tvd[f] <= tvd_limit[f] for f in tvd)
+    ess_fraction = ess / max(int(mask0.sum()), 1)
+    return {"max_smd": float(worst), "worst": where, "limit": float(limit), "smd_ok": bool(worst <= limit),
+            "tvd": tvd, "tvd_limit": tvd_limit, "tvd_ok": bool(tvd_ok), "ess": ess, "ess_fraction": ess_fraction,
+            "ess_ok": bool(ess_fraction >= ESS_MIN_FRACTION), "n_target": int(mask1.sum()),
+            "passes": bool(worst <= limit and tvd_ok and ess_fraction >= ESS_MIN_FRACTION)}
+
+
+def _tvd_noise(pp, n0, n1):
+    """Expected total-variation distance between two independent samples of sizes n0 and n1 from the same
+    categorical distribution pp (normal approximation: E|N(0, s^2)| = s sqrt(2/pi))."""
+    s = np.sqrt(pp * (1 - pp) * (1 / max(n0, 1) + 1 / max(n1, 1)))
+    return float(np.sqrt(2 / np.pi) * s.sum() / 2)
 
 
 _DOMAIN_CACHE: dict = {}
@@ -289,7 +305,9 @@ def main():
     margins = json.loads((STAGE_A / "margins.json").read_text())
     frames = {y: frame(y) for y in YEARS}
     thr = thresholds(frames)
-    res = {"alpha": ALPHA, "thresholds": thr, "provenance": provenance()}
+    res = {"alpha": ALPHA, "thresholds": thr, "provenance": provenance(
+        inputs=data_files(YEARS) + [str((STAGE_A / f).relative_to(ROOT)) for f in ("margins.json", "estimates_2014_2018.json")]
+        + ["data/raw/cpi/r-cpi-u-rs-allitems.xlsx"] + ([] if SMOKE else ["results/validation/split_variance.json"]))}
 
     # 8.2 other interventions: envelope rule as C3, each with its own 2014-2018 envelope
     band = {}

@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from pipeline import provenance, verify_inventory
+from pipeline import data_files, provenance, verify_inventory
 from stage_b_secondary import STAGE_A, decompose, frame, p3_prior_shift, thresholds
 
 
@@ -38,7 +38,8 @@ def main():
     STAGE_A.mkdir(parents=True, exist_ok=True)
     (STAGE_A / "decomposition_2018_check.json").write_text(
         json.dumps({"thresholds": thr, "results": out,
-                    "provenance": provenance("check_decomposition_2018.py+stage_b_secondary.py")},
+                    "provenance": provenance("check_decomposition_2018.py+stage_b_secondary.py",
+                                              inputs=data_files([2014, 2018]) + ["data/raw/cpi/r-cpi-u-rs-allitems.xlsx"])},
                    indent=1, default=float))
 
 

@@ -44,13 +44,36 @@ GEOGRAPHIES = {1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 15, 16, 17, 18, 19, 20, 21, 22, 
 assert len(GEOGRAPHIES) == 51          # folktables' 50 states + Puerto Rico
 
 
-def check_year_allowed(year: int) -> None:
+def check_year_allowed(year: int, derived: bool = True) -> None:
     if year in NEW_YEARS and not PREREG_ARCHIVED_FLAG.exists():
         raise PermissionError(
             f"Refusing to read {year}: the pre-registration has not been archived "
             f"({PREREG_ARCHIVED_FLAG} missing).")
     if year not in ORIGINAL_YEARS + NEW_YEARS:
         raise ValueError(f"Unsupported year {year}")
+    if derived:
+        assert_derived_current(year)
+
+
+_VERIFIED: set = set()
+
+
+def assert_derived_current(year: int) -> None:
+    """A derived file is used only if its metadata carries build provenance (raw-file hashes and build-code hash)
+    and the file matches its recorded hash; checked once per process (QA 3, R3-2)."""
+    if year in _VERIFIED:
+        return
+    out, meta_path = DERIVED / f"acsincome_{year}.parquet", DERIVED / f"acsincome_{year}.json"
+    if not (out.exists() and meta_path.exists()):
+        raise FileNotFoundError(f"{out} or its metadata is missing; build it with src/data.py {year}")
+    meta = json.loads(meta_path.read_text())
+    if "raw_sha256" not in meta or "build_spec_sha256" not in meta:
+        raise RuntimeError(f"{out} has no build provenance; rebuild with: python src/data.py {year} --overwrite")
+    if meta["build_spec_sha256"] != build_spec_sha():
+        raise RuntimeError(f"{out} was built with another build specification; rebuild with --overwrite")
+    if meta.get("sha256_parquet") != _sha256(out):
+        raise RuntimeError(f"{out} does not match its recorded hash")
+    _VERIFIED.add(year)
 
 
 def _read_member_filtered(zf: zipfile.ZipFile, name: str, counts: dict) -> pd.DataFrame:
@@ -82,7 +105,7 @@ def _read_member_filtered(zf: zipfile.ZipFile, name: str, counts: dict) -> pd.Da
 
 def read_year_universe(year: int) -> tuple[pd.DataFrame, dict]:
     """ACSIncome universe for the 50 states and Puerto Rico; DC excluded. Both archives are required."""
-    check_year_allowed(year)
+    check_year_allowed(year, derived=False)
     parts, members, counts = [], [], {}
     for fname in ("csv_pus.zip", "csv_ppr.zip"):
         zpath = RAW / str(year) / fname
@@ -127,18 +150,33 @@ def _logged_raw_hashes() -> dict:
     return out
 
 
+RAW_FILES = ("csv_pus.zip", "csv_ppr.zip")
+
+
+def _to_table(uni: pd.DataFrame) -> tuple[pd.DataFrame, list]:
+    """Column selection and types of the derived table."""
+    keep = [c for c in FEATURES + EXTRA + REPWEIGHTS if c in uni.columns]
+    uni = uni[keep].copy()
+    for c in keep:
+        if c not in STRING_COLS and c not in REPWEIGHTS:
+            uni[c] = pd.to_numeric(uni[c], errors="raise").astype("float64")
+    return uni, keep
+
+
 def build_spec_sha() -> str:
     """Hash of the code and constants that turn raw files into the derived file (comments and docstrings ignored)."""
     import ast
     import inspect
     h = hashlib.sha256()
-    for fn in (read_year_universe, _read_member_filtered, acsincome_universe):
+    for fn in (read_year_universe, _read_member_filtered, acsincome_universe, _to_table):
         tree = ast.parse(inspect.getsource(fn))
         f = tree.body[0]
         if f.body and isinstance(f.body[0], ast.Expr) and isinstance(getattr(f.body[0], "value", None), ast.Constant):
             f.body = f.body[1:] or [ast.Pass()]
         h.update(ast.dump(tree, annotate_fields=False).encode())
-    h.update(json.dumps([FEATURES, EXTRA, sorted(REQUIRED), sorted(EXCLUDED_ST), sorted(GEOGRAPHIES)]).encode())
+    import pyarrow
+    h.update(json.dumps([FEATURES, EXTRA, sorted(REQUIRED), sorted(EXCLUDED_ST), sorted(GEOGRAPHIES), sorted(WANTED),
+                         sorted(STRING_COLS), REPWEIGHTS, RAW_FILES, pd.__version__, pyarrow.__version__]).encode())
     return h.hexdigest()
 
 
@@ -146,7 +184,10 @@ def build_year(year: int, overwrite: bool = False) -> Path:
     DERIVED.mkdir(parents=True, exist_ok=True)
     out = DERIVED / f"acsincome_{year}.parquet"
     meta_path = DERIVED / f"acsincome_{year}.json"
-    raw = {f: _sha256(RAW / str(year) / f) for f in ("csv_pus.zip", "csv_ppr.zip") if (RAW / str(year) / f).exists()}
+    missing = [f for f in RAW_FILES if not (RAW / str(year) / f).exists()]
+    if missing:
+        raise FileNotFoundError(f"{year}: required raw files missing: {missing}")
+    raw = {f: _sha256(RAW / str(year) / f) for f in RAW_FILES}
     if out.exists() and meta_path.exists() and not overwrite:
         meta = json.loads(meta_path.read_text())
         if meta.get("sha256_parquet") != _sha256(out) or set(map(int, meta["rows_by_ST"])) != GEOGRAPHIES:
@@ -154,18 +195,12 @@ def build_year(year: int, overwrite: bool = False) -> Path:
         if "raw_sha256" in meta:          # derived file bound to its raw inputs and build specification (QA 2, R1)
             if meta["raw_sha256"] != raw or meta.get("build_spec_sha256") != build_spec_sha():
                 raise RuntimeError(f"{out}: raw inputs or build specification changed; rebuild with --overwrite")
-        else:                             # files built before these fields existed: raw inputs checked against the
-            logged = _logged_raw_hashes()   # hashes logged at download (logs/raw_sha256.txt)
-            for f, h in raw.items():
-                if logged.get(f"data/raw/{year}/{f}") != h:
-                    raise RuntimeError(f"{year}/{f}: raw file differs from logs/raw_sha256.txt")
+        else:                             # built before build provenance existed: not accepted (QA 3, R3-2)
+            raise RuntimeError(f"{out} has no build provenance; rebuild with --overwrite")
         return out
+    previous = _sha256(out) if out.exists() else None
     uni, info = read_year_universe(year)
-    keep = [c for c in FEATURES + EXTRA + REPWEIGHTS if c in uni.columns]
-    uni = uni[keep].copy()
-    for c in keep:
-        if c not in STRING_COLS and c not in REPWEIGHTS:
-            uni[c] = pd.to_numeric(uni[c], errors="raise").astype("float64")
+    uni, keep = _to_table(uni)
     by_st = uni.groupby("ST").size()
     got = set(int(k) for k in by_st.index)
     if got != GEOGRAPHIES:
@@ -173,6 +208,10 @@ def build_year(year: int, overwrite: bool = False) -> Path:
                            f"unexpected {sorted(got - GEOGRAPHIES)}")
     tmp = out.with_suffix(".parquet.tmp")
     uni.to_parquet(tmp, index=False)
+    identical = None
+    if previous is not None:            # on a rebuild, record whether the table content is unchanged
+        import pyarrow.parquet as pq
+        identical = bool(pq.read_table(tmp).equals(pq.read_table(out)))
     os.replace(tmp, out)
     info.update({
         "n_universe": int(len(uni)),
@@ -183,10 +222,15 @@ def build_year(year: int, overwrite: bool = False) -> Path:
         "sha256_parquet": _sha256(out),
         "raw_sha256": raw,
         "build_spec_sha256": build_spec_sha(),
+        "previous_sha256_parquet": previous,
+        "content_identical_to_previous": identical,
     })
     tmpm = meta_path.with_suffix(".json.tmp")
     tmpm.write_text(json.dumps(info, indent=2))
     os.replace(tmpm, meta_path)
+    prov_dir = ROOT / "results" / "data_provenance"          # committed and archived copy of the build record
+    prov_dir.mkdir(parents=True, exist_ok=True)
+    (prov_dir / f"acsincome_{year}.json").write_text(json.dumps(info, indent=2))
     return out
 
 

@@ -50,3 +50,6 @@ results/smoke/models_manifest.json
 *.tmp.npy
 *.tmp.json
 *.joblib.tmp
+archive/
+results/validation/_lineage_test_upstream.json
+results/validation/inference_validation_partial_*.json

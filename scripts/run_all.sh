@@ -8,10 +8,12 @@ PY="uv run python -W ignore"
 case "${1:-}" in
   stage_a)
     bash scripts/test_fetch.sh          # download integrity checks on synthetic files
-    $PY scripts/test_analysis.py        # estimator and decision-rule tests on synthetic data
+    $PY scripts/test_analysis.py        # estimator, decision-rule and balance-gate tests on synthetic data
+    $PY scripts/test_archive.py         # archive verifier on a synthetic package with a mocked Zenodo record
     bash scripts/download_stage1.sh
     bash scripts/download_docs.sh       # exits 3 with instructions if only the CPI file must be fetched by hand
-    $PY src/data.py 2014 2015 2016 2017 2018
+    $PY src/data.py 2014 2015 2016 2017 2018 --overwrite    # rebuild with build provenance (byte-identical, D027)
+    $PY scripts/test_specs.py           # specification-sensitivity and lineage tests (reads data-file hashes)
     $PY scripts/digitise_figure4.py docs/sources/ding2021_arxiv_v3.pdf
     $PY scripts/reconstruct.py --plan all --jobs 6
     $PY scripts/compare_reconstruction.py

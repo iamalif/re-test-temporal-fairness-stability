@@ -145,45 +145,61 @@ def violated_edge_case():
     return out
 
 
+THETAS = (-0.02, -0.01, -0.005, 0.0, 0.005, 0.0075, 0.01, 0.0125, 0.015, 0.02, 0.03)
+HISTORIES = ("flat", "observed shape", "trend")
+
+
 def part3(wt, rng, reps=20000):
-    """Joint simulation of the whole procedure for C1, C2, C6 (deviation from the baseline) and C3, C4 (envelope):
-    the five historical estimates, the calibration rule (delta or epsilon from those estimates, floor 0.01), the
-    baseline estimate and the later-year estimate are all redrawn in every replicate (QA 2, A1). True histories:
-    flat, and the observed seed-mean shape of 2014-2018. Errors are judged against the realised calibration
-    constant: a false 'holds' is |theta| >= margin with decision 'holds'; a false 'violated' is |theta| <= margin
-    with decision 'violated'. Uses the per-year SEs of seed 0 (a stand-in for the seed-mean SE)."""
+    """Joint simulation of the whole procedure for C1, C2, C6 (deviation from the baseline) and C3, C4 (envelope)
+    (QA 2 A1, QA 3 A3-3). In every replicate the five historical estimates, the calibration rule (delta or epsilon
+    from those estimates, floor 0.01), the baseline estimate and the later-year estimate are redrawn. True histories:
+    flat, the observed seed-mean shape of 2014-2018, and a linear trend of 0.01 over the window (stress). True values
+    theta of both signs. The per-year SEs follow the runner's convention (mean over the five seeds of the per-seed
+    SE); simulating the seed mean with this SE overstates its noise, which is conservative for false 'holds'.
+    Reported, with Monte Carlo standard errors:
+      unconditional rates  P(holds and |theta| >= margin), P(violated and |theta| <= margin)  (acceptance criteria)
+      null-conditioned     P(holds | |theta| >= margin), P(violated | |theta| <= margin), with their denominators.
+    These are operating characteristics averaged over the historical sampling that sets the constants; they are not
+    guarantees conditional on the realised constants."""
     m = MARG[wt]
-    specs = {"C1": ("gbm_s0", "dp_race", "dev"), "C2": ("gbm_s0", "dp_sex", "dev"), "C6": ("gbm_s0", "eo_sex", "dev"),
-             "C3": ("post_dp_race_s0", "dp_race", "env"), "C4": ("post_dp_sex_s0", "dp_sex", "env")}
+    specs = {"C1": ("gbm", "dp_race", "dev"), "C2": ("gbm", "dp_sex", "dev"), "C6": ("gbm", "eo_sex", "dev"),
+             "C3": ("post_dp_race", "dp_race", "env"), "C4": ("post_dp_sex", "dp_sex", "env")}
     z = stats.norm.ppf(1 - ALPHA / 2)
     res = {}
-    for c, (name, metric, kind) in specs.items():
+    for c, (fam, metric, kind) in specs.items():
         k = METRICS.index(metric)
-        s_t = np.array([np.sqrt(cov(name, y, wt)[k, k]) for y in YEARS])
+        s_t = np.array([np.mean([np.sqrt(cov(f"{fam}_s{sd}", y, wt)[k, k]) for sd in SEEDS]) for y in YEARS])
         s_new = float(s_t[-1])                           # later year approximated by 2018 on all rows
         shape = (np.array([m["deviation_from_baseline_by_year"][metric][str(y)] for y in YEARS]) if kind == "dev"
                  else np.array([np.mean(m["post_dp_per_seed_by_year"][metric[3:]][str(y)]) for y in YEARS]))
+        hists = {"flat": np.zeros(5), "observed shape": shape, "trend": np.linspace(-0.005, 0.005, 5)}
         rows = []
-        for hist_label, mu_hist in (("flat", np.zeros(5)), ("observed shape", shape)):
+        for hist_label in HISTORIES:
+            mu_hist = hists[hist_label]
             B = mu_hist.mean()
-            for theta in (0.0, 0.005, 0.0075, 0.01, 0.0125, 0.015, 0.02, 0.03):
+            for theta in THETAS:
                 hist = mu_hist + s_t * rng.standard_normal((reps, 5))
                 newv = (B if kind == "dev" else 0.0) + theta + s_new * rng.standard_normal(reps)
                 if kind == "dev":
                     bhat = hist.mean(1)
                     margin = np.maximum(np.abs(hist - bhat[:, None]).max(1), 0.01)
                     est, se = newv - bhat, np.sqrt(s_new ** 2 + (s_t ** 2).sum() / 25)
-                    true = theta                                  # population later value minus population baseline
                 else:
                     margin = np.maximum(np.abs(hist).max(1), 0.01)
-                    est, se, true = newv, s_new, theta
+                    est, se = newv, s_new
                 lo, hi = est - z * se, est + z * se
                 holds = (lo >= -margin) & (hi <= margin)
                 viol = (lo > margin) | (hi < -margin)
-                fh = float(np.mean(holds & (abs(true) >= margin)))
-                fv = float(np.mean(viol & (abs(true) <= margin)))
+                outside, inside = abs(theta) >= margin, abs(theta) <= margin
+                fh, fv = float(np.mean(holds & outside)), float(np.mean(viol & inside))
+                n_out, n_in = int(outside.sum()), int(inside.sum())
                 rows.append({"history": hist_label, "theta": theta, "p_holds": float(holds.mean()),
                              "p_violated": float(viol.mean()), "p_false_holds": fh, "p_false_violated": fv,
+                             "mc_se_false_holds": float(np.sqrt(fh * (1 - fh) / reps)),
+                             "mc_se_false_violated": float(np.sqrt(fv * (1 - fv) / reps)),
+                             "n_null_outside": n_out, "n_null_inside": n_in,
+                             "p_holds_given_outside": float((holds & outside).sum() / n_out) if n_out else None,
+                             "p_violated_given_inside": float((viol & inside).sum() / n_in) if n_in else None,
                              "mean_margin": float(margin.mean())})
         res[c] = {"rows": rows, "max_p_false_holds": max(r["p_false_holds"] for r in rows),
                   "max_p_false_violated": max(r["p_false_violated"] for r in rows), "reps": reps}
@@ -194,8 +210,9 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(20261119)
     which = sys.argv[1] if len(sys.argv) > 1 else "all"
-    path = OUT / "inference_validation.json"
-    res = json.loads(path.read_text()) if path.exists() else {}
+    # only a complete run writes the registered file; partial runs (development) write a separate scratch file
+    path = OUT / ("inference_validation.json" if which == "all" else f"inference_validation_partial_{which}.json")
+    res = {"complete_run": which == "all"}
     res["alpha_per_test"] = ALPHA
     res["acceptance"] = ACCEPT
     res["violated_edge_case"] = violated_edge_case()
@@ -244,7 +261,8 @@ def main():
             v["max_p_false_holds"] <= tol(ACCEPT["joint_false_holds_max"], v["reps"])
             and v["max_p_false_violated"] <= tol(ACCEPT["joint_false_violated_max"], v["reps"]) for v in jt.values())
     res["acceptance_passed"] = ok
-    res["provenance"] = provenance()
+    root = Path(__file__).resolve().parents[1]
+    res["provenance"] = provenance(inputs=["results/stage_a/estimates_2014_2018.json", "results/stage_a/margins.json"])
     print("acceptance:", ok)
     path.write_text(json.dumps(res, indent=1, default=lambda o: o.item() if hasattr(o, "item") else str(o)))
 

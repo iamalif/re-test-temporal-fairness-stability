@@ -1,6 +1,6 @@
 # Pre-registration: Does fairness stay put? A re-test of temporal fairness stability on ACS 2014–2024
 
-**Status:** DRAFT v0.3 (20 Nov 2026). Changes since v0.2: decision log D021–D026, D023 and D026 in response to an
+**Status:** DRAFT v0.3 (20 Nov 2026). Changes since v0.2: decision log D021–D027, D023, D026 and D027 in response to an
 independent review (`docs/qa_independent_1_report.md`, disposition in `docs/qa_independent_1_disposition.md`).
 Not yet archived. Values marked ⟨A⟩ are filled from Stage A result files once the Stage A rerun finishes; the rules
 that produce them are fixed here.
@@ -41,7 +41,7 @@ and whether the race DP gap changes less than accuracy relative to geographic ya
   (original-cohort years) and a label-drift explanation, which we treat as prior evidence.
 - **Theory read in full:** Chen et al. (NeurIPS 2022, arXiv 2206.00129), including their state-level 2014→2018
   results; Asiaee and Aryan (arXiv 2602.05144).
-- **Independent reviews (19 and 20 Nov 2026):** the reviewer inspected code, plan, documentation and 2014–2018
+- **Independent reviews (19 and 20 Nov 2026, three rounds):** the reviewer inspected code, plan, documentation and 2014–2018
   aggregate results only, and opened no person records. It encountered the already-recorded statement listed above
   (an external result of unstated years) and opened no source of later-year outcomes.
 
@@ -51,7 +51,10 @@ and whether the race DP gap changes less than accuracy relative to geographic ya
   Rico), survey years 2014–2019 and 2021–2024. Both files are required for every year; the build fails unless the
   year contains exactly the 51 registered geographies. Excluded: 2020 (experimental weights only; Census advises
   against comparison) and 2025 (release not available when archiving). SHA-256 of every raw file:
-  `logs/raw_sha256.txt`.
+  `logs/raw_sha256.txt` (append-only: an entry is never rewritten, and a file that no longer matches its entry is
+  an error). Each derived table records the hashes of its two raw files and of the build code (reading, filtering,
+  column selection and types, library versions); a table without this provenance, or built by other code, is
+  refused. Rebuilding 2014–2018 with the current builder reproduced the existing tables byte for byte (D027).
 - **Universe (folktables ACSIncome), defined by its filters:** AGEP > 16, PINCP > 100, WKHP > 0 (usual hours worked
   in the past 12 months), PWGTP ≥ 1; 50 states and Puerto Rico; DC excluded (not in folktables' state list). Current
   employment is not required. This reproduces folktables' row counts exactly (2014: 1,587,856; 2018: 1,664,500).
@@ -85,10 +88,14 @@ and whether the race DP gap changes less than accuracy relative to geographic ya
 All models are trained on a training split (within-state 80/20 random split, seeded, of persons) of their training
 year (2014 unless stated) and saved with their preprocessing. Model files (≈135 MB) are deposited with the archive;
 their SHA-256 hashes are in `results/models_manifest.json` (hash of that file: ⟨A⟩), and every load verifies them.
-Each model also records the hash of its **fit specification**: the job, the feature list and harmonisation mappings,
-all estimator hyperparameters, the SHA-256 of the training-year data file, the code of the split and of the fitting
-functions (comments ignored) and the library versions. A model counts as fitted only if this hash equals the
-registered one and the file matches its hash; anything else is refitted. Derived data files record the hashes of
+Each model also records the hash of its **fit specification**: the job; every semantic setting by value (feature
+sets, group columns, label threshold and rule, race codes, pooling rule, estimator and intervention settings
+including the library defaults of ExpGrad, harmonisation mappings); the SHA-256 of the training-year data file; the
+code of the split, of the shared data-to-design path and of the job's own model family (comments ignored; a change
+to one family's fitting code leaves the other families' specifications unchanged); and the library versions. A
+model counts as fitted only if this hash equals the registered one and the file matches its hash; anything else is
+refitted. `scripts/test_specs.py` changes one setting at a time and checks that exactly the affected
+specifications change. Derived data files record the hashes of
 their raw Census files and of the build code.
 
 - **Base model (reconstruction rule, D015):** `GradientBoostingClassifier(loss="exponential", max_depth=5,
@@ -173,13 +180,15 @@ the original fitted classifier; they concern frozen models built by the reconstr
 endpoints (C2, C4, C6) concern models that use race as an input; with race measured differently from 2020, they
 include any effect of that change on predictions (8.10 reports them without race as an input).
 
-**Target of inference.** θ compares the later year's population value with the *population* 2014–2018 baseline
-(target (b) of the second review), so the baseline's sampling variance enters every standard error. The margins,
-envelopes and yardsticks are fixed numbers computed once from the observed 2014–2018 estimates and are not
-re-estimated; the decision is judged against these realised numbers. Because the same historical estimates give
-both the baseline and the margin, the error rates are not guaranteed by the interval alone; they were checked by a
-joint simulation that redraws the historical estimates, the calibration rule, the baseline and the later-year
-estimate together (Section 7.6). All intervals are large-sample normal approximations.
+**Target of inference and what the error rates mean.** θ compares the later year's population value with the
+*population* 2014–2018 baseline, so the baseline's sampling variance enters every standard error. The margins,
+envelopes and yardsticks are numbers computed once from the observed 2014–2018 estimates by the rules of Section 6
+and then frozen; each decision is judged against the realised numbers. Because the same historical estimates give
+both the baseline and the margin, the interval alone does not guarantee the error rates. Their operating
+characteristics were therefore evaluated by a joint simulation that redraws the historical estimates, the
+calibration rule, the baseline and the later-year estimate together (Section 7.6). These are **unconditional**
+rates, averaged over the historical sampling that sets the constants; we do not claim error control conditional on
+the realised constants. All intervals are large-sample normal approximations.
 
 **Why the baseline rather than 2014 alone (C1–C6):** the 2014 evaluation set is the 20% test split, so a change
 measured from 2014 alone has a standard error of about 0.003 for the race DP gap, and the Bonferroni interval would
@@ -190,8 +199,9 @@ mean would partly absorb.
 
 ## 6. Calibration constants (rules fixed; values from 2014–2018 only; frozen before archiving)
 
-These are fixed numbers computed once from the observed 2014–2018 point estimates. The tests are conditional on
-them: they do not claim to estimate a "true" historical range, and their sampling uncertainty is not propagated.
+These are fixed numbers computed once from the observed 2014–2018 point estimates and then frozen. They are not
+presented as estimates of a "true" historical range, and their sampling uncertainty is not propagated into the
+intervals; its effect on the error rates is part of the joint simulation (Section 7.6).
 
 - **δ_m (temporal margin):** the largest absolute deviation of a year 2014–2018 from the baseline, for the
   seed-mean trajectory of the unconstrained model, floored at 0.01. It is the year-to-year variation the original
@@ -226,10 +236,13 @@ split. Before archiving, `scripts/check_split_variance.py` evaluates, on 2018 wi
 per-year scaling), each with both label rules, and the base per-state model in the largest, a middle and the
 smallest of the 20 states. For each it compares the average variance estimate on a split (V_split) with the
 variance of the full-sample estimate plus the between-split variance (V_full + S), using the one-sided 95% upper
-confidence bound of S so that Monte Carlo error enlarges the adjustment. The variance of every training-year
-test-split estimate of a metric and weighting is multiplied by the largest ratio over the configurations, floored at
-1. Values and all per-configuration ratios: ⟨A⟩ (`results/validation/split_variance.json`). This is a calibration over
-representative settings, not a derivation.
+confidence bound of S (chi-square with the number of valid splits minus one degrees of freedom; approximate,
+assuming roughly normal split estimates), which makes Monte Carlo error more likely to enlarge than to shrink the
+adjustment. The variance of every training-year test-split estimate of a metric and weighting is multiplied by the
+largest ratio over the configurations, floored at 1. Every configuration must have at least 95% valid splits for
+every metric; otherwise the calibration fails and must be resolved before archiving (no default of 1 is
+substituted). Values and all per-configuration ratios: ⟨A⟩ (`results/validation/split_variance.json`). This is an
+approximate calibration over representative settings, not a derivation.
 
 ### 7.2 Decisions
 - **C1–C6 (three-way):** with the two-sided (1 − α) normal interval: **holds** if it lies inside [−margin, margin];
@@ -271,10 +284,17 @@ simulation (`scripts/validate_inference.py`, `results/validation/inference_valid
 errors and the probability of "holds" at θ = 0 (unweighted / weighted): ⟨A⟩. C7 coverage over a grid of true changes
 including zeros and the boundary D = 0, at the anticipated covariance and under stress settings: minimum ⟨A⟩.
 **Joint simulation** (C1–C4, C6): the five historical estimates, the calibration rule, the baseline estimate and the
-later-year estimate are redrawn together, for a flat history and for the observed 2014–2018 shape, over true
-values θ from 0 to 0.03; an error is judged against the realised margin. Acceptance criteria, fixed now: false
-"holds" ≤ α/2 and false "violated" ≤ α, each within three Monte Carlo standard errors; C7 coverage ≥ 1 − α; the
-three-way rule's analytic false-"holds" probability ≤ α/2 for every θ beyond the margin. Results: ⟨A⟩.
+later-year estimate are redrawn together (20,000 replicates per case) for three true histories (flat, the observed
+2014–2018 shape, and a linear trend of 0.01 across the window) and 11 true values θ from −0.02 to 0.03; per-year
+standard errors follow the runner's convention (mean of the per-seed SEs), which overstates the noise of the seed
+mean and is conservative for false "holds". An error is judged against the realised margin. Reported: unconditional
+rates P(holds and |θ| ≥ margin) and P(violated and |θ| ≤ margin) with Monte Carlo standard errors, and the
+null-conditioned rates P(holds | |θ| ≥ margin) and P(violated | |θ| ≤ margin) with their denominators.
+Acceptance criteria, fixed now and recomputed from the detailed results by `scripts/check_outputs.py`: every
+unconditional false "holds" ≤ α/2 and false "violated" ≤ α, each within three Monte Carlo standard errors; C7
+coverage ≥ 1 − α in every grid cell; the three-way rule's analytic false-"holds" probability ≤ α/2 for every θ
+beyond the margin; complete case grids; one complete validation run (partial runs cannot replace the registered
+file). Results: ⟨A⟩.
 
 ## 8. Secondary analyses (pre-specified, no family-wise claim; 95% intervals)
 
@@ -310,12 +330,17 @@ codes as numbers: the standardised difference of the share of every category wit
 categorical features) and the standardised mean difference of age and hours, with the largest value reported, plus
 the total-variation distance of each categorical feature.
 **Reliability rule:** the decomposition is interpreted only if (i) the DP residual is within ±0.005 for race and for
-sex (a frozen model's DP depends only on the features, so it must be near zero); (ii) in each group the largest
-balance value after reweighting is at most 0.02 + 3·sqrt(1/ESS + 1/n_target), a 0.02 tolerance plus a
-sampling-noise allowance from the group's effective sample size and target size; and (iii) the residuals of
-accuracy and of both EO gaps change by at most 0.005 between 99.9% clipping and no clipping. The thresholds were set
-on the 2014 → 2018 data (allowed): before reweighting every group fails (largest values 0.039–0.046 against limits
-0.027–0.039), after reweighting every group passes (0.010–0.023), and the clipping changes are below 0.001. Otherwise the split is reported as unreliable and P2 is not assessed. Passing is a
+sex (a frozen model's DP depends only on the features, so it must be near zero); (ii) in each group: the effective
+sample size of the weights is at least 50% of the group's 2014 rows (support); the largest balance value after
+reweighting is at most min(0.02 + 3·sqrt(1/ESS + 1/n_target), 0.05), a 0.02 tolerance plus a sampling-noise
+allowance, capped so that poor support cannot widen it; and every categorical feature's total-variation distance
+(all categories, rare ones included) is at most 0.05 plus its expected value under sampling noise alone; and
+(iii) the residuals of accuracy and of both EO gaps change by at most 0.005 between 99.9% clipping and no clipping.
+The thresholds were set on the 2014 → 2018 data (allowed; this is calibration, not independent validation): before
+reweighting every group fails (largest values 0.039–0.046 against limits 0.027–0.039), after reweighting every group
+passes (0.010–0.023; effective sample size 97–98%; largest total-variation distance 0.028 against a limit of 0.070),
+and the clipping changes are below 0.001. Synthetic tests (`scripts/test_analysis.py`) confirm that concentrated
+weights and a shift of mass among rare categories fail the rule while a balanced case passes. Otherwise the split is reported as unreliable and P2 is not assessed. Passing is a
 necessary check, not proof that the residual is a label change. The rule was run before archiving on 2014 → 2018
 (`results/stage_a/decomposition_2018_check.json`): ⟨A⟩.
 
@@ -373,8 +398,9 @@ folktables @ ebace19). One command per stage: `bash scripts/run_all.sh stage_a` 
 predictions first runs the inventory check (exact model list, fit specifications, model and prediction hashes,
 prediction provenance against the current models and code, 20 states, 380 pairs). Every result file carries a
 provenance block (model-manifest hash, prediction-specification hash, git commit, hash of src/ and of the producing
-script). `scripts/check_outputs.py` re-runs the inventory check, rejects result files whose provenance does not
-match the current state, checks the acceptance criteria of Section 7.6 and the completeness of every output, and
+script, and the SHA-256 of every consumed input file: upstream result files, calibration files, data files and the
+price index). `scripts/check_outputs.py` re-runs the inventory check, rejects result files whose provenance (code
+or any input) does not match the current state, checks the acceptance criteria of Section 7.6 and the completeness of every output, and
 enforces `prereg/OUTPUT_CHECKLIST.md`. Synthetic tests: estimators and decision rules (`scripts/test_analysis.py`),
 download integrity (`scripts/test_fetch.sh`), artifact tampering and failing workers (`scripts/test_integrity.py`).
 
@@ -383,8 +409,13 @@ downloaded: this file; the code at the archived commit; `uv.lock`; the frozen mo
 the Stage A result files (calibration constants, stored 2014–2018 estimates, validation results); the harmonisation
 report and provenance table. The repository is also saved by Software Heritage. `prereg/ARCHIVE_RECEIPT.json` records
 the DOI, the Software Heritage identifier and the SHA-256 of every deposited file; `prereg/ARCHIVED` is created only
-after `scripts/verify_archive.py` has checked the receipt against the local files and the public Zenodo record
-(file list, MD5 checksums, sizes, DOI) and against the current pre-registration, manifest and Stage A files. The flag
+after `scripts/verify_archive.py verify` has (i) checked the package bytes against the receipt; (ii) opened the
+package and hashed every member, requiring the complete inventory (this plan, the code, the lock file, every Stage A
+and validation result, the harmonisation report and provenance table, the decision log, the raw-file hash log, and
+every frozen model file with the hash in the archived manifest); (iii) required the same bytes in the local copies;
+(iv) checked the public Zenodo record (published, DOI, exactly this package with the same MD5 and size); and
+(v) required the Software Heritage identifier and the date it was checked by hand. Offline tests with a mocked
+record (`scripts/test_archive.py`) confirm that an incomplete package fails even when the receipt matches it. The flag
 guards against accidental access; the verified receipt is the evidence of archiving. The SHA-256 of this file will be quoted in the paper.
 
 ## 11. Use of AI assistance

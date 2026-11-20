@@ -25,7 +25,7 @@ import pandas as pd
 from analysis import (METRICS, REP, Estimate, NotComputable, change, compare_stability, estimates,
                       noise_corrected_abs, sign_count, three_way)
 from common import label, load_year, state_split
-from pipeline import MANIFEST, SEEDS, SMOKE, load_pred, provenance, train_year_of, verify_inventory
+from pipeline import MANIFEST, SEEDS, SMOKE, data_files, load_pred, provenance, train_year_of, verify_inventory
 
 FAMILY = ("C1", "C2", "C3", "C4", "C6", "C7")
 ALPHA = 0.05 / len(FAMILY)
@@ -110,7 +110,10 @@ def main():
     manifest = json.loads(MANIFEST.read_text())
     frames = {y: frame(y) for y in (2014, Y_RACE, Y_SEX)}
     res = {"family": list(FAMILY), "alpha_per_test": ALPHA, "alpha_secondary": ALPHA_SECONDARY,
-           "provenance": provenance(), "stage_a_margins_provenance": margins.get("provenance")}
+           "provenance": provenance(inputs=data_files(ALL_YEARS) + [str(MARGINS.relative_to(ROOT)),
+                                    str((MARGINS.parent / "estimates_2014_2018.json").relative_to(ROOT))]
+                                    + ([] if SMOKE else ["results/validation/split_variance.json"])),
+           "stage_a_margins_provenance": margins.get("provenance")}
     for wi, wt in enumerate(WT):
         mg, r = margins[wt], {}
 

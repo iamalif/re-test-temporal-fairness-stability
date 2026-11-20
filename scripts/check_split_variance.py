@@ -8,7 +8,8 @@ configuration c (model, label rule, population) and each metric and weighting:
   S      = variance of the split estimates over K random within-state splits (the split's own contribution)
   V_split= mean of the variance estimates computed on the splits
   ratio  = (V_full + S_upper) / V_split, with S_upper the one-sided 95% upper confidence bound of S
-           (chi-square, K - 1 degrees of freedom), so Monte Carlo error makes the adjustment larger, not smaller.
+           (chi-square with (valid splits - 1) degrees of freedom; approximate, assuming roughly normal split
+           estimates), which makes Monte Carlo error more likely to enlarge than to shrink the adjustment.
 Pre-specified multiplier for every training-year test-split estimate of a metric and weighting: the largest ratio
 over the configurations, floored at 1. Configurations span the model families (base, DP and EO post-processing,
 ExpGrad, per-year scaling), both label rules, and three per-state populations (largest, middle and smallest of the
@@ -28,7 +29,7 @@ from scipy import stats
 
 from analysis import METRICS, REP, Estimate, unweighted, weighted
 from common import label, load_year, state_split
-from pipeline import MANIFEST, SMOKE, load_pred, provenance, verify_inventory
+from pipeline import MANIFEST, SMOKE, data_files, load_pred, provenance, verify_inventory
 
 K = 400
 SEEDS = range(1000, 1000 + K)
@@ -71,10 +72,9 @@ def main():
             for wi, wt in enumerate(WT):
                 split_vals[c][wt].append([e[wi].values[k] for k in METRICS])
                 split_vars[c][wt].append(np.diag(e[wi].cov))
-    chi = stats.chi2.ppf(0.05, K - 1)
     out = {"K": K, "year": 2018, "states_used": pick, "configurations": {}, "multipliers": {wt: {} for wt in WT},
            "rule": "max over configurations of (V_full + S_upper95) / V_split, floored at 1",
-           "provenance": provenance()}
+           "provenance": provenance(inputs=data_files([2018]))}
     for c in configs:
         key = f"{c[0]}|{c[1]}|{'US' if c[2] is None else c[2]}"
         out["configurations"][key] = {}
@@ -83,23 +83,31 @@ def main():
             res = {}
             for k, metric in enumerate(METRICS):
                 v_full = float(full[c][wi].cov[k, k])
-                s_b = float(np.nanvar(vals[:, k], ddof=1)) if np.isfinite(vals[:, k]).sum() > 1 else float("nan")
-                s_up = s_b * (K - 1) / chi
+                n_ok = int(np.isfinite(vals[:, k]).sum())
+                s_b = float(np.nanvar(vals[:, k], ddof=1)) if n_ok > 1 else float("nan")
+                s_up = s_b * (n_ok - 1) / stats.chi2.ppf(0.05, n_ok - 1) if n_ok > 1 else float("nan")
                 v_split = float(np.nanmean(vars_[:, k])) if np.isfinite(vars_[:, k]).any() else float("nan")
                 ok = bool(np.isfinite([v_full, s_b, v_split]).all() and v_split > 0)
-                res[metric] = {"V_full": v_full, "S": s_b, "S_upper95": s_up, "V_split": v_split,
+                res[metric] = {"valid_splits": n_ok, "V_full": v_full, "S": s_b, "S_upper95": s_up, "V_split": v_split,
                                "ratio_point": (v_full + s_b) / v_split if ok else None,
                                "ratio_upper": (v_full + s_up) / v_split if ok else None}
             out["configurations"][key][wt] = res
+    failures = []
     for wt in WT:
         for metric in METRICS:
-            r = [out["configurations"][k][wt][metric]["ratio_upper"] for k in out["configurations"]]
-            r = [x for x in r if x is not None]
+            cells = {k: out["configurations"][k][wt][metric] for k in out["configurations"]}
+            bad = [k for k, c in cells.items() if c["ratio_upper"] is None or c["valid_splits"] < 0.95 * K]
+            if bad:                     # calibration must cover every registered configuration (no silent 1.0)
+                failures.append(f"{wt}/{metric}: insufficient evidence in {bad}")
+            r = [c["ratio_upper"] for c in cells.values() if c["ratio_upper"] is not None]
             out["multipliers"][wt][metric] = max([1.0] + r)
         print(wt, {m: round(v, 3) for m, v in out["multipliers"][wt].items()})
     path = ROOT / "results" / "validation"
     path.mkdir(parents=True, exist_ok=True)
+    out["calibration_failures"] = failures
     (path / ("split_variance.json" if not SMOKE else "smoke_split_variance.json")).write_text(json.dumps(out, indent=1))
+    if failures:
+        raise SystemExit("split-variance calibration failed:\n  " + "\n  ".join(failures))
 
 
 if __name__ == "__main__":

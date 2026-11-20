@@ -1,0 +1,40 @@
+{
+ "tests": {
+  "complete package passes": {
+   "passed": true,
+   "problems": []
+  },
+  "package without the pre-registration fails": {
+   "passed": true,
+   "problems": [
+    "package lacks prereg/PREREGISTRATION.md"
+   ]
+  },
+  "model file differing from its manifest hash fails": {
+   "passed": true,
+   "problems": [
+    "model file data/derived/models/m.joblib in the package differs from its manifest hash"
+   ]
+  },
+  "wrong Zenodo checksum fails": {
+   "passed": true,
+   "problems": [
+    "Zenodo checksum or size differs from the receipt"
+   ]
+  },
+  "missing Software Heritage check fails": {
+   "passed": true,
+   "problems": [
+    "Software Heritage identifier or the date of its manual check is missing"
+   ]
+  },
+  "local reference file changed after archiving fails": {
+   "passed": true,
+   "problems": [
+    "results/stage_a/margins.json: local file differs from the archived one"
+   ]
+  }
+ },
+ "all_passed": true,
+ "script_sha256": "3387115b816a7cd1c45c1dea36cac0527476fbe3b441ae52a8eeb994283660bb"
+}

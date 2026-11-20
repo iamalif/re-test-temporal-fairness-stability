@@ -9,5 +9,5 @@ PUMS=https://www2.census.gov/programs-surveys/acs/data/pums
 for Y in 2019 2021 2022 2023 2024; do
   for F in csv_pus.zip csv_ppr.zip; do fetch "$PUMS/$Y/1-Year/$F" "data/raw/$Y/$F"; done
 done
-find data/raw -type f ! -name '_files.txt' ! -name '*.part' -print0 | sort -z | xargs -0 shasum -a 256 > logs/raw_sha256.txt
+bash scripts/log_raw_hashes.sh
 echo "Downloaded. Logged $(wc -l < logs/raw_sha256.txt) raw-file hashes."
