@@ -1,0 +1,170 @@
+{
+ "directories": [
+  "data/raw/dictionaries",
+  "data/raw/crosswalk",
+  "data/raw/variable_changes",
+  "data/raw/cpi"
+ ],
+ "files": {
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2014-2018.csv": {
+   "sha256": "ffb1e0a0200e3f7a6fd91fae644238e908898c5d0615c191f128c16885d0ed79",
+   "size": 317174
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2014-2018.pdf": {
+   "sha256": "a882fd834a89ac40d5e7e3570c30c58a5e0f79ad6d7c64474d8da9c2dba5682a",
+   "size": 328406
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2014-2018.txt": {
+   "sha256": "b28e8361b70c321fa6e8a4a2044f559db4ff65f32ada7812b80b58d9e30f8d74",
+   "size": 297393
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2017-2021.csv": {
+   "sha256": "74154daa89473dd09cc22201c87c807dea2400ae69cfb2cebe916f2f503c3cb5",
+   "size": 324680
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2017-2021.pdf": {
+   "sha256": "e336d400b2bb11dc2c1d9325e783214fb030968c7b63ac4f28852b6211bca172",
+   "size": 394225
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2017-2021.txt": {
+   "sha256": "bcec6a986c2c2a6b8ab9d5ccd6bbf81ff8bcf8a9e3cb6a9ee1bf2ff11aa3ad47",
+   "size": 303536
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2017.csv": {
+   "sha256": "7e961adad6e3e26dc62f0cbd9be7848a67efc66d68a6dc5eedd64c320e919dd2",
+   "size": 315630
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2017.pdf": {
+   "sha256": "a0d5bcd2bc78a12dff209d7815241b63805e8ef4f41bfbb4338224e0b56bef65",
+   "size": 722022
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2017.txt": {
+   "sha256": "ea5bcde2a07b0c76ac145fac108e9013480b686a9d70afc4e3f4a6512ccbfd69",
+   "size": 294848
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2018.csv": {
+   "sha256": "81186ab76bd469568549590d4da121bcf50c778a9c1b82f6d00d37b23142fec3",
+   "size": 319204
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2018.pdf": {
+   "sha256": "2c7703a66fddc6db66b59c8f359bfff2d9e339c3d1db0f7f1d123da2be5901a0",
+   "size": 726219
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2018.txt": {
+   "sha256": "843a18e15b6cb7c7326261d478947a1415c4674c62419a8d01946a5a5df4d5fd",
+   "size": 298670
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2019.csv": {
+   "sha256": "45ffe392ce1d14ab9d63e88dc6183c6855d626aa6696141f66759a9e91a60c36",
+   "size": 320862
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2019.pdf": {
+   "sha256": "4dbac7d646d0315a50cb22198b549d3b0f757a131d7d7cce25cebf62a94ad668",
+   "size": 336480
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2019.txt": {
+   "sha256": "2ecbd86e979aa4e94945012e7537e53c37a4deff7f0435adb000b98b5a50ce77",
+   "size": 300134
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2021.csv": {
+   "sha256": "3eeae6597ead224d27e6914882bc98dc7f6d1194af978b40d3ea358a62abfc00",
+   "size": 322391
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2021.pdf": {
+   "sha256": "6ef4835a340f28906b2d0127048e20f4b182ecf1e27f37cbc97b471257b5712e",
+   "size": 393324
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2021.txt": {
+   "sha256": "53fb9da5c36b68670c54ab12baa13c4767f6b3e43db326585635c5a333090b60",
+   "size": 301277
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2022.csv": {
+   "sha256": "1d94e843500dc46e54672d610a0b0f4560d85eedba6bb01c2f9d5c547c2962bc",
+   "size": 322185
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2022.pdf": {
+   "sha256": "94c7723257ab8407bb1a0d7274e6d80f8d24754afea5171ed0e60ebb6b46b6cf",
+   "size": 394606
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2022.txt": {
+   "sha256": "4a920e7c2a83dc5bede6620e5edf9bed825a8950072271bbbadd800c400ba9e6",
+   "size": 301115
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2023.csv": {
+   "sha256": "003cfe1616d673dc23624e8604bc97579a642971852bc9c1ef673452b3a2515b",
+   "size": 324429
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2023.pdf": {
+   "sha256": "7c48f195a561d63d07e928150795a930659b65ff36c89c21d43c806c0ffec22e",
+   "size": 390163
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2023.txt": {
+   "sha256": "0e58d8edd725d44035c32ee2697acb3963eb39c36caf4096e0ce494c64bb6dc6",
+   "size": 303015
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2024.csv": {
+   "sha256": "cd562a3719c6cdf79736bd9cfbacf8c20e650d641c62abd7e67fd131da036e18",
+   "size": 329514
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2024.pdf": {
+   "sha256": "929c2752995b0af1c16d5c64de8cdc43b4aa7d388ee2d45b4b4df90fecce1dff",
+   "size": 395086
+  },
+  "data/raw/dictionaries/PUMS_Data_Dictionary_2024.txt": {
+   "sha256": "9a98282277aa7f2dafb12b0bdf38b258689d3a1a9c2abbd9b5e2c1ddde6f7b32",
+   "size": 306867
+  },
+  "data/raw/dictionaries/_files.txt": {
+   "sha256": "8c7c9507b9323abca6a1d9480ab00f443e86c6895c05879219da941116b053ca",
+   "size": 840
+  },
+  "data/raw/crosswalk/2018-occupation-code-list-and-crosswalk.xlsx": {
+   "sha256": "fca2818d691c32777a4cd733a9ab77c8c5bd47adcacd7ac3aa149bebd45b5f7f",
+   "size": 160312
+  },
+  "data/raw/variable_changes/ACS2016-2020_PUMS_Variable_Changes_and_Explanations.pdf": {
+   "sha256": "5db153f1844966d66e4175f83affd4db00d4b4425b5dfcc34a4dc1f96cdaa02d",
+   "size": 243109
+  },
+  "data/raw/variable_changes/ACS2017-2021_PUMS_Variable_Changes_and_Explanations.pdf": {
+   "sha256": "87e08ec25b67725ec3a88b3202a51aadfdf0e1408990653d548aeed1bfb0e303",
+   "size": 266719
+  },
+  "data/raw/variable_changes/ACS2018-2022_PUMS_Variable_Changes_and_Explanations.pdf": {
+   "sha256": "d7ffd01a02f2f2f20fe121a6b4d5bb7c177ec4e259068aedb6d32080a0fb192e",
+   "size": 260345
+  },
+  "data/raw/variable_changes/ACS2019-2023_PUMS_Variable_Changes_and_Explanations.pdf": {
+   "sha256": "92de3216ebf8da0572c9965cfafaaef9c9a2334c93079d1c0507bbd1ed94555f",
+   "size": 259742
+  },
+  "data/raw/variable_changes/ACS2020-2024_PUMS_Variable_Changes_and_Explanations.pdf": {
+   "sha256": "f8d76b30621061290e56f2ebbb37e4ac59d314800f424d248bd7be6759d67e78",
+   "size": 272161
+  },
+  "data/raw/variable_changes/ACS2021_PUMS_Variable_Changes_and_Explanations.pdf": {
+   "sha256": "3f2ef37f61d3677d2e5b0e7b546f5ca1cb0ae65b5e518551ef4ae3e52fb3b8e4",
+   "size": 286670
+  },
+  "data/raw/variable_changes/ACS2022_PUMS_Variable_Changes_and_Explanations.pdf": {
+   "sha256": "dc2e91f449f76397141c24f29a943b39db407f94071883255341511a415138e2",
+   "size": 244543
+  },
+  "data/raw/variable_changes/ACS2023_PUMS_Variable_Changes_and_Explanations.pdf": {
+   "sha256": "a31e0fa9b9ee3321d9093b21fd4c66204e9a6af367ec2546514c0caa3d24cf7d",
+   "size": 229634
+  },
+  "data/raw/variable_changes/ACS2024_PUMS_Variable_Changes_and_Explanations.pdf": {
+   "sha256": "60558ee662ea16da8cc9895b8d87ac4619b896111a87b6584347c0acfd975885",
+   "size": 273934
+  },
+  "data/raw/variable_changes/_files.txt": {
+   "sha256": "467835932b79e578e6173c2eaa74499f1c525fa3ccbc89dca4527d7334ba79c0",
+   "size": 484
+  },
+  "data/raw/cpi/r-cpi-u-rs-allitems.xlsx": {
+   "sha256": "355ea8a14a6d07d777a17a1ddad526b8a199390a7c1bb8c7b58e2dec1a2544d8",
+   "size": 13916
+  }
+ }
+}

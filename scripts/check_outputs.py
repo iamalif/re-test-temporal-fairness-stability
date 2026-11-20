@@ -100,6 +100,34 @@ def check_validation(val):
     need(abs(acc.get("three_way_false_holds_max", 0) - ALPHA / 2) < 1e-12, "validation: registered acceptance values")
 
 
+def check_models_inference_only(man):
+    """No deposited model may hold row-level data (freeze review FZ-1, D033): every model file is loaded (hash-checked)
+    and its object graph scanned; the inference-only export record must match the manifest and show identical
+    predictions for every evaluated year."""
+    from pipeline import TRAINING_CACHES, load_model, row_level_arrays
+    for name in sorted(man):
+        try:
+            fz = load_model(name, man)
+        except Exception as e:                             # noqa: BLE001
+            problems.append(f"model {name}: {str(e)[:200]}")
+            continue
+        found = row_level_arrays(fz)
+        need(not found, f"model {name}: holds row-level arrays {found[:3]}")
+        need(not any(hasattr(fz.model, a) for a in TRAINING_CACHES.get(fz.kind, ())), f"model {name}: training cache")
+    rec = load("results/validation/inference_only_export.json")
+    need(rec is not None, "inference-only export record missing (scripts/export_inference_only.py)")
+    if rec:
+        for name, e in rec.get("exports", {}).items():
+            need(man.get(name, {}).get("sha256") == e.get("new_sha256"), f"export record {name}: manifest hash differs")
+            need(man.get(name, {}).get("inference_only", {}).get("exported_from_sha256") == e.get("old_sha256"),
+                 f"export record {name}: original hash differs")
+            preds = e.get("predictions", {})
+            need(sorted(preds) == [str(y) for y in range(2014, 2019)] and
+                 all(v.get("identical") is True and v["old_pred_sha256"] == v["new_pred_sha256"] for v in preds.values()),
+                 f"export record {name}: predictions not identical for every year 2014-2018")
+        need(rec.get("audit_after", {}).get("with_row_level_arrays") == 0, "export record: audit after export")
+
+
 def stage_a(current):
     from pipeline import N_STATES, expected_specs, verify_inventory
     from reconstruct import load_runs
@@ -136,6 +164,7 @@ def stage_a(current):
     man = load("results/models_manifest.json")
     if man is not None:
         need(set(man) == set(expected_specs()), "manifest: exact model inventory")
+        check_models_inference_only(man)
     mg = load("results/stage_a/margins.json")
     if mg:
         fresh("margins.json", mg.get("provenance"), current)

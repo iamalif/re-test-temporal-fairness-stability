@@ -533,3 +533,19 @@ Report: docs/qa_independent_round_3_report.md; disposition: docs/qa_independent_
   marked "[redacted before archiving: personal details, D032]". This is the only in-place change to earlier log
   entries; no design decision, value or rule was changed. Earlier versions remain in the public git history.
 - No code affecting data, models, predictions, analyses or validation changed.
+
+## D033 - 2026-11-20 - Freeze review (report: docs/qa_freeze_review_2026-11-20.md): inference-only models; verifier
+- Verdict: do not publish the package of commit 28a6156; archive after FZ-1 and FZ-2. Disposition:
+  docs/qa_freeze_disposition.md.
+- FZ-1 (blocking): the frozen ExpGrad model held its 2014 training data (1,270,284 rows: features, labels, group
+  tags) in Fairlearn's fitted `constraints_`; earlier archive checks looked at file names and hashes, not inside model
+  objects. Fix without refitting: pipeline.inference_only / dump_model remove training caches and refuse any model
+  holding an array of >= 5,000 rows; scripts/export_inference_only.py migrates the frozen file and requires
+  byte-identical 2014-2018 predictions; the output gate audits every model and the export record; all downstream
+  Stage A steps are rerun and compared with the committed results (scripts/compare_results_to_commit.py).
+  Fit specifications are unchanged (save code is not part of any fit specification), so no model is refitted.
+- FZ-2 (blocking): verify_archive.py binds the package to the archived commit (blobs), exact member set, frozen
+  reference-input list (results/reference_inputs.json), manifest-listed models, published Zenodo record and the
+  revision SWHID of that commit. test_archive.py: 24 cases, all pass.
+- FZ-3: LICENSE scoped; TMLR template files and their licence listed. FZ-4: status wording. FZ-5: accepted.
+- The run of the migration and its evidence are recorded in D034.

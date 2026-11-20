@@ -288,12 +288,72 @@ def model_current(name: str, entry: dict, specs: dict) -> bool:
             and sha256_file(path) == entry.get("sha256"))
 
 
-def _save(fz: Frozen, fit_seconds: float, n_train: int, train_year: int, spec_sha: str) -> dict:
+# Training-only state that holds row-level training data. Fairlearn's ExponentiatedGradient keeps the training matrix,
+# labels and group tags in constraints_ (a loaded copy of the constraint object); prediction (_pmf_predict) uses only
+# the fitted predictors, their weights and the unloaded constraint object (freeze review FZ-1, D033).
+TRAINING_CACHES = {"expgrad": ("constraints_",)}
+ROW_LEVEL_MIN = 5000   # any array this long inside a model is treated as row-level data (largest legitimate array:
+                       # ThresholdOptimizer's 1,001-point grids; smallest training set: 24,478 rows)
+
+
+def inference_only(fz: Frozen) -> Frozen:
+    """Remove the training-only caches of TRAINING_CACHES from a fitted model, in place; predictions are unchanged."""
+    for attr in TRAINING_CACHES.get(fz.kind, ()):
+        if hasattr(fz.model, attr):
+            delattr(fz.model, attr)
+    return fz
+
+
+def row_level_arrays(obj, n_min: int = ROW_LEVEL_MIN) -> list:
+    """Paths and shapes of arrays, frames, series and sequences with at least n_min rows anywhere in an object graph
+    (attributes, containers, object arrays); a deposited model must have none (FZ-1)."""
+    import pandas as pd_
+    out, seen, stack = [], set(), [("model", obj)]
+    while stack:
+        path, o = stack.pop()
+        if id(o) in seen or isinstance(o, (str, bytes, int, float, bool, type(None), np.number)):
+            continue
+        seen.add(id(o))
+        if isinstance(o, np.ndarray):
+            if o.ndim and o.shape[0] >= n_min:
+                out.append((path, list(o.shape)))
+            if o.dtype == object:
+                stack += [(f"{path}[{i}]", v) for i, v in enumerate(o.ravel())]
+        elif isinstance(o, (pd_.DataFrame, pd_.Series, pd_.Index)):
+            if len(o) >= n_min:
+                out.append((path, list(o.shape)))
+            vals = o.to_numpy()
+            if vals.dtype == object:
+                stack += [(f"{path}.values[{i}]", v) for i, v in enumerate(vals.ravel())]
+        elif isinstance(o, dict):
+            stack += [(f"{path}[{k!r}]", v) for k, v in o.items()]
+        elif isinstance(o, (list, tuple, set, frozenset)):
+            if len(o) >= n_min:
+                out.append((path, [len(o)]))
+            stack += [(f"{path}[{i}]", v) for i, v in enumerate(o)]
+        elif hasattr(o, "__dict__"):
+            stack += [(f"{path}.{k}", v) for k, v in vars(o).items()]
+        elif hasattr(o, "__slots__"):
+            stack += [(f"{path}.{k}", getattr(o, k)) for k in o.__slots__ if hasattr(o, k)]
+    return out
+
+
+def dump_model(fz: Frozen) -> Path:
+    """Write an inference-only model file atomically; refuses a model that still holds row-level arrays."""
+    inference_only(fz)
+    left = row_level_arrays(fz)
+    if left:
+        raise RuntimeError(f"model {fz.name} still holds row-level arrays: {left[:5]}")
     MODELS.mkdir(parents=True, exist_ok=True)
     path = MODELS / f"{fz.name}.joblib"
     tmp = path.with_suffix(".joblib.tmp")
     joblib.dump(fz, tmp, compress=3)
     os.replace(tmp, path)
+    return path
+
+
+def _save(fz: Frozen, fit_seconds: float, n_train: int, train_year: int, spec_sha: str) -> dict:
+    path = dump_model(fz)
     return {"name": fz.name, "file": path.name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
             "fit_seconds": round(fit_seconds, 1), "n_train": int(n_train), "kind": fz.kind,
             "features": fz.features, "group": fz.group, "seed": fz.seed,

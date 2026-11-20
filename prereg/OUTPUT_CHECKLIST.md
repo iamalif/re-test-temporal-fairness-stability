@@ -22,7 +22,9 @@ Enforced by `scripts/check_outputs.py stage_a|stage_b` (exits non-zero on any mi
 | 10 | Estimator and decision-rule tests (synthetic) | `results/validation/analysis_tests.json` |
 | 10 | Download integrity tests (synthetic) | `results/validation/fetch_tests.json` |
 | 4, 10 | Specification-sensitivity and lineage tests | `results/validation/spec_tests.json` |
-| 10 | Archive-verifier tests (synthetic package, mocked Zenodo record) | `results/validation/archive_tests.json` |
+| 10 | Archive-verifier tests (synthetic git repositories, mocked Zenodo record; 24 cases) | `results/validation/archive_tests.json` |
+| 4 | Inference-only model files: audit of every model for row-level arrays; export record with byte-identical 2014–2018 predictions (D033) | `results/validation/inference_only_export.json` |
+| 10 | Frozen list of non-person reference inputs with SHA-256 | `results/reference_inputs.json` |
 | 3 | Derived tables 2014–2018 with build provenance (raw-file hashes, build-code hash; byte-identical rebuild) | `results/data_provenance/acsincome_<year>.json` (committed and archived; the copy in `data/derived/` is checked on every load) |
 | Reconstruction | 56-run inventory, comparison, figure, macros | `results/reconstruction/runs.jsonl`, `comparison.csv`, `paper/figures/reconstruction.pdf`, `paper/numbers_reconstruction.tex` |
 

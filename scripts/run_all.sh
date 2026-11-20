@@ -21,6 +21,8 @@ case "${1:-}" in
     $PY scripts/harmonisation_report.py
     $PY scripts/stage_a.py fit --jobs 6
     $PY scripts/stage_a.py predict --jobs 5
+    $PY scripts/export_inference_only.py   # audit; inference-only model files (D033)
+    $PY scripts/stage_a.py verify
     $PY scripts/check_split_variance.py
     $PY scripts/stage_a_analysis.py
     $PY scripts/check_decomposition_2018.py

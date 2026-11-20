@@ -1,83 +1,78 @@
 {
  "tests": {
   "complete package passes": {
-   "passed": true,
-   "problems": []
+   "passed": true
   },
   "package without the pre-registration fails": {
-   "passed": true,
-   "problems": [
-    "package lacks prereg/PREREGISTRATION.md",
-    "package lacks prereg/PREREGISTRATION.md"
-   ]
+   "passed": true
   },
   "model file differing from its manifest hash fails": {
-   "passed": true,
-   "problems": [
-    "data/derived/models/m.joblib: local file differs from the archived one",
-    "model file data/derived/models/m.joblib in the package differs from its manifest hash"
-   ]
+   "passed": true
   },
   "wrong Zenodo checksum fails": {
-   "passed": true,
-   "problems": [
-    "Zenodo checksum or size differs from the receipt"
-   ]
+   "passed": true
   },
-  "missing Software Heritage check fails": {
-   "passed": true,
-   "problems": [
-    "Software Heritage identifier or the date of its manual check is missing"
-   ]
+  "Zenodo record with an extra file fails": {
+   "passed": true
   },
-  "local reference file changed after archiving fails": {
-   "passed": true,
-   "problems": [
-    "results/stage_a/margins.json: local file differs from the archived one",
-    "results/stage_a/margins.json: local file differs from the archived one"
-   ]
+  "missing Software Heritage check date fails": {
+   "passed": true
   },
-  "local Python source changed after archiving fails": {
-   "passed": true,
-   "problems": [
-    "src/a.py: local file differs from the archived one"
-   ]
+  "local committed file changed after build fails": {
+   "passed": true
   },
-  "local shell script changed after archiving fails": {
-   "passed": true,
-   "problems": [
-    "scripts/run_all.sh: local file differs from the archived one"
-   ]
+  "local shell script changed after build fails": {
+   "passed": true
   },
   "package without a shell script fails": {
-   "passed": true,
-   "problems": [
-    "package lacks scripts/run_all.sh"
-   ]
+   "passed": true
   },
-  "git: committed files only; matching revision SWHID passes": {
-   "passed": true,
-   "problems": []
+  "untracked file is left out and the package passes": {
+   "passed": true
   },
-  "git: build with uncommitted tracked change refused": {
-   "passed": true,
-   "problems": [
-    "build refused: refusing to build: tracked files have uncommitted changes:"
-   ]
+  "build with an uncommitted tracked change is refused": {
+   "passed": true
   },
-  "git: SWHID of another commit fails": {
-   "passed": true,
-   "problems": [
-    "Software Heritage identifier is not the revision of the archived commit (expected swh:1:rev:d79d6a5595c1a9b52347a18c98aa9d54820fbd4f)"
-   ]
+  "identifier of another commit fails": {
+   "passed": true
   },
-  "git: directory SWHID instead of revision fails": {
-   "passed": true,
-   "problems": [
-    "Software Heritage identifier is not the revision of the archived commit (expected swh:1:rev:d79d6a5595c1a9b52347a18c98aa9d54820fbd4f)"
-   ]
+  "directory identifier instead of revision fails": {
+   "passed": true
+  },
+  "receipt naming a non-existent commit with a matching identifier fails": {
+   "passed": true
+  },
+  "receipt without the commit fails": {
+   "passed": true
+  },
+  "tracked file deleted and committed after build fails": {
+   "passed": true
+  },
+  "unexpected extra package member fails (receipt and record matching)": {
+   "passed": true
+  },
+  "duplicate package member fails": {
+   "passed": true
+  },
+  "unlisted file in a reference folder is left out and the package passes": {
+   "passed": true
+  },
+  "reference input changed locally after build fails": {
+   "passed": true
+  },
+  "model file changed locally after build fails": {
+   "passed": true
+  },
+  "build with a reference input differing from its frozen hash is refused": {
+   "passed": true
+  },
+  "build with a model differing from its manifest hash is refused": {
+   "passed": true
+  },
+  "unpublished Zenodo record fails": {
+   "passed": true
   }
  },
  "all_passed": true,
- "script_sha256": "22c15c281fc30be63ee9c6435fc64c6e9a3683a405460f9c8d970bbea2ead65b"
+ "script_sha256": "37b709e3518f32a392b39dde6f3d2f25cbe767fb3716a65e856c679c66ce4fd5"
 }

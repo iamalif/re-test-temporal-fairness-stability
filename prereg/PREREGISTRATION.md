@@ -1,9 +1,9 @@
 # Pre-registration: Does fairness stay put? A re-test of temporal fairness stability on ACS 2014–2024
 
-**Status:** v1.0, frozen for archiving (20 Nov 2026). Changes since v0.2: decision log D021–D032; D023, D026–D029 and D031 respond to
-five independent reviews and a final pre-archive review (`docs/qa_independent_*_report.md` and their dispositions).
-This is the deposited version; its DOI and Software Heritage identifier cannot appear in the deposited file and are
-recorded in `prereg/ARCHIVE_RECEIPT.json` and `prereg/ARCHIVED`. Numerical values from 2014–2018 were filled in from the Stage A run of 20 Nov 2026
+**Status:** v1.0, the version prepared for deposit (20 Nov 2026). Changes since v0.2: decision log D021–D033; D023,
+D026–D029, D031 and D033 respond to five independent reviews, a final pre-archive review and a freeze review (`docs/qa_independent_*_report.md` and their dispositions).
+Identifiers are recorded outside the package, in the verified receipt (`prereg/ARCHIVE_RECEIPT.json`) and the flag
+(`prereg/ARCHIVED`). Numerical values from 2014–2018 were filled in from the Stage A run of 20 Nov 2026
 (commit 7d16f23, log `logs/stage_a_rerun_D029.txt`), whose output gate passed; the rules that produce them are
 fixed here, and the result files are archived with this plan.
 **Author:** single author (name withheld for anonymous review). Independent research; no institution endorses it.
@@ -43,10 +43,11 @@ and whether the race DP gap changes less than accuracy relative to geographic ya
   (original-cohort years) and a label-drift explanation, which we treat as prior evidence.
 - **Theory read in full:** Chen et al. (NeurIPS 2022, arXiv 2206.00129), including their state-level 2014→2018
   results; Asiaee and Aryan (arXiv 2602.05144).
-- **Independent reviews (19 and 20 Nov 2026; five rounds and a final pre-archive review):** the reviewer
+- **Independent reviews (19 and 20 Nov 2026; five rounds, a final pre-archive review and a freeze review):** the reviewer
   inspected code, plan, documentation and 2014–2018 results, and ran synthetic checks. Earlier rounds opened no
   person records; the final pre-archive pass read permitted 2014–2018 columns (to recompute a subgroup count and to
-  re-run the output gate). No person record for 2019 or later was accessed. The reviewer encountered the
+  re-run the output gate), and the freeze review inspected the serialised model objects (attribute names and array
+  shapes of a 2014 training cache, no individual record printed). No person record for 2019 or later was accessed. The reviewer encountered the
   already-recorded statement listed above (an external result of unstated years) and opened no source of
   later-year outcomes.
 
@@ -91,8 +92,12 @@ and whether the race DP gap changes less than accuracy relative to geographic ya
 ## 4. Models (fitted once and frozen before archiving)
 
 All models are trained on a training split (within-state 80/20 random split, seeded, of persons) of their training
-year (2014 unless stated) and saved with their preprocessing. Model files (126,749,100 bytes, about 127 MB) are deposited with the archive;
-their SHA-256 hashes are in `results/models_manifest.json` (98 models; SHA-256 of that file: e1c51845bbd43d67c6851ba8137a8c018bfd281903737d182366f2476450baac), and every load verifies them.
+year (2014 unless stated) and saved with their preprocessing, as inference-only objects: training-only caches that
+hold training rows are removed (Fairlearn's ExponentiatedGradient keeps its training data in `constraints_`, which
+prediction does not use; removed from the already-fitted model without refitting, with byte-identical predictions
+for 2014–2018; `results/validation/inference_only_export.json`, D033), and the output gate fails if any model holds
+an array of 5,000 or more rows. Model files (⟨MODEL_BYTES⟩ bytes) are deposited with the archive;
+their SHA-256 hashes are in `results/models_manifest.json` (98 models; SHA-256 of that file: ⟨MANIFEST_SHA⟩), and every load verifies them.
 Each model also records the hash of its **fit specification**: the job; every semantic setting by value (feature
 sets, group columns, label threshold and rule, race codes, pooling rule, estimator and intervention settings
 including the library defaults of ExpGrad, harmonisation mappings); the SHA-256 of the training-year data file; the
@@ -433,24 +438,27 @@ enforces `prereg/OUTPUT_CHECKLIST.md`. Synthetic tests: estimators and decision 
 download integrity (`scripts/test_fetch.sh`), artifact tampering and failing workers (`scripts/test_integrity.py`).
 
 **Archive.** Deposited on Zenodo (one immutable record) before any ACS person record for 2019 or later is
-downloaded: this file; the code at the archived commit; `uv.lock`; the frozen model files; `results/models_manifest.json`;
-the Stage A result files (calibration constants, stored 2014–2018 estimates, validation results); the harmonisation
-report and provenance table; and the non-person reference inputs (Census data dictionaries, the 2018 occupation
-crosswalk, the PUMS variable-change notes and the CPI workbook). Census person files are not deposited; they are
-identified by the SHA-256 hashes in `logs/raw_sha256.txt`. The package holds exactly the files of the archived git
-commit (the build refuses uncommitted changes), plus the model files and reference inputs, which are not in git. The
+downloaded. The package holds exactly: (a) every file of the archived git commit, taken from the commit itself
+(this plan, the code, `uv.lock`, `results/models_manifest.json`, the Stage A and validation result files, the
+harmonisation report and provenance table, the decision log, the raw-file hash log, documentation and manuscript
+sources); (b) the non-person reference inputs (Census data dictionaries, the 2018 occupation crosswalk, the PUMS
+variable-change notes and the CPI workbook) listed with their SHA-256 in that commit's
+`results/reference_inputs.json`; and (c) the inference-only frozen model files listed in that commit's manifest.
+Census person files are not deposited; they are identified by the SHA-256 hashes in `logs/raw_sha256.txt`. The
 repository is also saved by Software Heritage. `prereg/ARCHIVE_RECEIPT.json` records the DOI, the Zenodo record,
-the archived commit, the Software Heritage identifier and the SHA-256, MD5 and size of the package (the hash of
-every member can be recomputed from the package itself); `prereg/ARCHIVED` is created only
-after `scripts/verify_archive.py verify` has (i) checked the package bytes against the receipt; (ii) opened the
-package and hashed every member, requiring the complete inventory (this plan, the code, the lock file, every Stage A
-and validation result, the harmonisation report and provenance table, the decision log, the raw-file hash log, and
-every frozen model file with the hash in the archived manifest); (iii) required the same bytes in the local copies;
-(iv) checked the public Zenodo record (published, DOI, exactly this package with the same MD5 and size); and
-(v) required the Software Heritage revision identifier of the archived commit and the date it was checked by hand. Offline tests with a mocked
-record (`scripts/test_archive.py`) confirm that an incomplete package fails even when the receipt matches it, that untracked files are left out, that a
-build with uncommitted changes is refused, and that an identifier of another commit fails. The flag
-guards against accidental access; the verified receipt is the evidence of archiving. The SHA-256 of this file will be quoted in the paper.
+the archived commit, the Software Heritage identifier and the SHA-256, MD5 and size of the package. The build
+refuses uncommitted changes and any reference input or model file that differs from its frozen hash.
+`prereg/ARCHIVED` is created only after `scripts/verify_archive.py verify` has required that (i) the receipt names
+an existing commit, the checkout is at that commit and its tracked files are unchanged; (ii) the package bytes match
+the receipt and have no unsafe or duplicate member names; (iii) the package's member set equals (a)–(c) exactly;
+(iv) every committed member equals its blob in the archived commit, every reference input and model file its frozen
+hash, and each also the local copy; (v) the public Zenodo record is published, has the receipt's DOI and lists
+exactly this package with the same MD5 and size; and (vi) the Software Heritage identifier is the revision of the
+archived commit (`swh:1:rev:<commit>`) and the date of its manual check is recorded. Offline tests on synthetic git
+repositories with a mocked record (`scripts/test_archive.py`, 24 cases) confirm that every tested omission,
+extra or duplicate member, local change, wrong or missing commit, wrong identifier, unpublished record or dirty build
+fails. The flag guards against accidental access; the verified receipt is the evidence of archiving. The SHA-256 of
+this file will be quoted in the paper.
 
 ## 11. Use of AI assistance
 

@@ -1,9 +1,10 @@
-"""Offline tests of the archive verifier (QA 3, A3-1) on a synthetic project tree with a mocked Zenodo record.
-A complete package must pass; a package that omits a required member must fail even when the receipt matches the
-package bytes; a model file that differs from its manifest hash, a wrong Zenodo checksum and a missing Software
-Heritage check must fail. Writes results/validation/archive_tests.json; exits non-zero on any failure."""
+"""Offline tests of the archive verifier (QA 3 A3-1, QA 4 A4-1, freeze review FZ-2) on synthetic git repositories
+with a mocked Zenodo record. A correct package must pass; every listed tampering, omission, extra member, wrong
+commit or wrong identifier must fail, and build must refuse a dirty tree or a reference/model file that differs from
+its frozen hash. Writes results/validation/archive_tests.json; exits non-zero on any failure."""
 import hashlib
 import json
+import subprocess
 import sys
 import tempfile
 import zipfile
@@ -16,42 +17,65 @@ import verify_archive as V  # noqa: E402
 results = {}
 
 
-def make_tree(root: Path):
+def git(root, *args):
+    return subprocess.run(["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t", *args],
+                          capture_output=True, text=True, check=True).stdout.strip()
+
+
+def make_repo(root: Path):
     for rel in V.REQUIRED + ["src/a.py", "scripts/b.py", "scripts/run_all.sh", "README.md"]:
         p = root / rel
         p.parent.mkdir(parents=True, exist_ok=True)
-        if rel != "results/models_manifest.json":
+        if rel not in (V.MANIFEST, V.REFERENCE_LIST):
             p.write_text(f"content of {rel}\n")
+    (root / ".gitignore").write_text("data/\narchive/\nprereg/ARCHIVE_RECEIPT.json\nprereg/ARCHIVED\n")
     model = root / "data" / "derived" / "models" / "m.joblib"
     model.parent.mkdir(parents=True, exist_ok=True)
     model.write_bytes(b"model bytes")
-    (root / "results" / "models_manifest.json").write_text(json.dumps(
-        {"m": {"file": "m.joblib", "sha256": hashlib.sha256(b"model bytes").hexdigest()}}))
+    (root / V.MANIFEST).write_text(json.dumps({"m": {"file": "m.joblib", "sha256": hashlib.sha256(b"model bytes").hexdigest()}}))
+    ref = root / "data" / "raw" / "cpi" / "cpi.xlsx"
+    ref.parent.mkdir(parents=True, exist_ok=True)
+    ref.write_bytes(b"cpi bytes")
+    V.freeze_references(root)
+    git(root, "init", "-q")
+    git(root, "add", "-A")
+    git(root, "commit", "-q", "-m", "t")
 
 
-def finish_receipt(root: Path):
-    rec = json.loads((root / "prereg" / "ARCHIVE_RECEIPT.json").read_text())
-    rec.update({"zenodo_record": "1", "doi": "10.5281/zenodo.1", "swh_id": "swh:1:dir:abc",
-                "swh_checked_by_hand_on": "2026-11-21"})
-    (root / "prereg" / "ARCHIVE_RECEIPT.json").write_text(json.dumps(rec))
+def receipt(root):
+    return json.loads((root / V.RECEIPT).read_text())
+
+
+def save_receipt(root, rec):
+    (root / V.RECEIPT).write_text(json.dumps(rec))
+
+
+def finish(root, swh=None):
+    rec = receipt(root)
+    rec.update({"zenodo_record": "1", "doi": "10.5281/zenodo.1", "swh_checked_by_hand_on": "2026-11-21",
+                "swh_id": swh if swh is not None else f"swh:1:rev:{rec['git_commit']};origin=x"})
+    save_receipt(root, rec)
     return rec
 
 
-def record_for(rec, md5=None):
+def record_for(rec, md5=None, extra_file=False):
     f = rec["files"][0]
-    return lambda _id: {"doi": rec["doi"], "status": "published",
-                        "files": [{"key": "package.zip", "checksum": "md5:" + (md5 or f["md5"]), "size": f["size"]}]}
+    files = [{"key": "package.zip", "checksum": "md5:" + (md5 or f["md5"]), "size": f["size"]}]
+    if extra_file:
+        files.append({"key": "other.txt", "checksum": "md5:0", "size": 1})
+    return lambda _id: {"doi": rec["doi"], "status": "published", "files": files}
 
 
-def rewrite_receipt_to_package(root: Path):
+def resync(root):
+    """Make the receipt and the mocked record match the (tampered) package bytes."""
     pkg = root / V.PACKAGE
-    rec = json.loads((root / "prereg" / "ARCHIVE_RECEIPT.json").read_text())
-    rec["files"][0].update({"sha256": V.digest(pkg, "sha256"), "md5": V.digest(pkg, "md5"), "size": pkg.stat().st_size})
-    (root / "prereg" / "ARCHIVE_RECEIPT.json").write_text(json.dumps(rec))
-    return rec
+    rec = receipt(root)
+    rec["files"][0].update({"sha256": V.digest(pkg), "md5": V.digest(pkg, "md5"), "size": pkg.stat().st_size})
+    save_receipt(root, rec)
+    return record_for(rec)
 
 
-def drop_member(root: Path, member: str, replace: bytes | None = None):
+def rewrite(root, member, replace=None, add=None, dup=False):
     pkg = root / V.PACKAGE
     tmp = pkg.with_suffix(".tmp")
     with zipfile.ZipFile(pkg) as zin, zipfile.ZipFile(tmp, "w") as zout:
@@ -61,148 +85,122 @@ def drop_member(root: Path, member: str, replace: bytes | None = None):
                     zout.writestr(member, replace)
                 continue
             zout.writestr(info, zin.read(info))
+        if add:
+            zout.writestr(add[0], add[1])
+        if dup:
+            import warnings
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                zout.writestr("src/a.py", b"content of src/a.py\n")
     tmp.replace(pkg)
 
 
-def case(name, expect_pass, setup):
+def case(name, expect_pass, setup=lambda root: None, before_build=lambda root: None):
     with tempfile.TemporaryDirectory() as d:
         root = Path(d)
-        make_tree(root)
-        V.build(root)
-        rec = finish_receipt(root)
-        fetch = setup(root, rec) or record_for(rec)
-        problems = V.verify(root, fetch)
-        ok = (not problems) == expect_pass
-        results[name] = {"passed": ok, "problems": problems[:5]}
-
-
-case("complete package passes", True, lambda root, rec: None)
-
-
-def omit_prereg(root, rec):
-    drop_member(root, "prereg/PREREGISTRATION.md")
-    r = rewrite_receipt_to_package(root)              # the receipt matches the (incomplete) package bytes
-    return record_for(r)
-
-
-case("package without the pre-registration fails", False, omit_prereg)
-
-
-def bad_model(root, rec):
-    drop_member(root, "data/derived/models/m.joblib", replace=b"other bytes")
-    return record_for(rewrite_receipt_to_package(root))
-
-
-case("model file differing from its manifest hash fails", False, bad_model)
-case("wrong Zenodo checksum fails", False, lambda root, rec: record_for(rec, md5="0" * 32))
-
-
-def no_swh(root, rec):
-    r = json.loads((root / "prereg" / "ARCHIVE_RECEIPT.json").read_text())
-    r["swh_checked_by_hand_on"] = ""
-    (root / "prereg" / "ARCHIVE_RECEIPT.json").write_text(json.dumps(r))
-    return record_for(r)
-
-
-case("missing Software Heritage check fails", False, no_swh)
-
-
-def local_changed(root, rec):
-    (root / "results" / "stage_a" / "margins.json").write_text("changed after archiving\n")
-    return record_for(rec)
-
-
-case("local reference file changed after archiving fails", False, local_changed)
-
-def python_changed(root, rec):
-    (root / "src" / "a.py").write_text("changed code\n")
-    return record_for(rec)
-
-
-case("local Python source changed after archiving fails", False, python_changed)
-
-
-def shell_changed(root, rec):
-    (root / "scripts" / "run_all.sh").write_text("changed shell code\n")
-    return record_for(rec)
-
-
-case("local shell script changed after archiving fails", False, shell_changed)
-
-
-def omit_shell(root, rec):
-    drop_member(root, "scripts/run_all.sh")
-    return record_for(rewrite_receipt_to_package(root))     # receipt and remote record match the incomplete package
-
-
-case("package without a shell script fails", False, omit_shell)
-
-
-
-# git mode: the package holds exactly the committed files, build refuses a dirty tree, and the Software Heritage
-# identifier must be the revision of the archived commit
-import subprocess  # noqa: E402
-
-
-def git(root, *args):
-    return subprocess.run(["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t", *args],
-                          capture_output=True, text=True, check=True).stdout.strip()
-
-
-def git_case(name, expect_pass, setup):
-    with tempfile.TemporaryDirectory() as d:
-        root = Path(d)
-        make_tree(root)
-        git(root, "init", "-q")
-        git(root, "add", "-A", "--", ".", ":!data")
-        git(root, "commit", "-q", "-m", "t")
+        make_repo(root)
         try:
-            problems = setup(root)
+            before_build(root)
+            V.build(root)
+            finish(root)
+            fetch = setup(root) or record_for(receipt(root))
+            problems = V.verify(root, fetch)
         except SystemExit as e:
             problems = [f"build refused: {str(e).splitlines()[0]}"]
         ok = (not problems) == expect_pass
         results[name] = {"passed": ok, "problems": problems[:5]}
 
 
-def build_finish(root, swh=None):
-    V.build(root)
-    rec = json.loads((root / "prereg" / "ARCHIVE_RECEIPT.json").read_text())
-    rec.update({"zenodo_record": "1", "doi": "10.5281/zenodo.1", "swh_checked_by_hand_on": "2026-11-21",
-                "swh_id": swh if swh is not None else f"swh:1:rev:{rec['git_commit']}"})
-    (root / "prereg" / "ARCHIVE_RECEIPT.json").write_text(json.dumps(rec))
-    return V.verify(root, record_for(rec))
+case("complete package passes", True)
+case("package without the pre-registration fails", False,
+     lambda r: (rewrite(r, "prereg/PREREGISTRATION.md"), resync(r))[1])
+case("model file differing from its manifest hash fails", False,
+     lambda r: (rewrite(r, "data/derived/models/m.joblib", replace=b"other"), resync(r))[1])
+case("wrong Zenodo checksum fails", False, lambda r: record_for(receipt(r), md5="0" * 32))
+case("Zenodo record with an extra file fails", False, lambda r: record_for(receipt(r), extra_file=True))
 
 
-def untracked_left_out(root):
-    (root / "paper").mkdir(exist_ok=True)
-    (root / "paper" / "untracked_draft.pdf").write_bytes(b"draft")
-    problems = build_finish(root)
-    with zipfile.ZipFile(root / V.PACKAGE) as z:
-        names = set(z.namelist())
-    if "paper/untracked_draft.pdf" in names:
-        problems.append("untracked file was packaged")
-    if "src/a.py" not in names:
-        problems.append("committed file missing")
-    return problems
+def no_swh_date(r):
+    rec = receipt(r)
+    rec["swh_checked_by_hand_on"] = ""
+    save_receipt(r, rec)
 
 
-git_case("git: committed files only; matching revision SWHID passes", True, untracked_left_out)
+case("missing Software Heritage check date fails", False, no_swh_date)
+case("local committed file changed after build fails", False,
+     lambda r: (r / "results" / "stage_a" / "margins.json").write_text("changed\n"))
+case("local shell script changed after build fails", False,
+     lambda r: (r / "scripts" / "run_all.sh").write_text("changed\n"))
+case("package without a shell script fails", False, lambda r: (rewrite(r, "scripts/run_all.sh"), resync(r))[1])
+case("untracked file is left out and the package passes", True,
+     before_build=lambda r: (r / "paper").mkdir(exist_ok=True) or (r / "paper" / "draft.pdf").write_bytes(b"d"))
 
 
-def dirty_tree(root):
-    (root / "src" / "a.py").write_text("uncommitted change\n")
-    return build_finish(root)
+def dirty(r):
+    (r / "src" / "a.py").write_text("uncommitted\n")
 
 
-git_case("git: build with uncommitted tracked change refused", False, dirty_tree)
-git_case("git: SWHID of another commit fails", False, lambda root: build_finish(root, "swh:1:rev:" + "0" * 40))
-git_case("git: directory SWHID instead of revision fails", False, lambda root: build_finish(root, "swh:1:dir:" + "0" * 40))
+case("build with an uncommitted tracked change is refused", False, before_build=dirty)
+case("identifier of another commit fails", False, lambda r: finish(r, "swh:1:rev:" + "0" * 40) and None)
+case("directory identifier instead of revision fails", False, lambda r: finish(r, "swh:1:dir:" + "0" * 40) and None)
+
+
+def unrelated_commit(r):
+    rec = receipt(r)
+    rec["git_commit"] = "1" * 40
+    rec["swh_id"] = "swh:1:rev:" + "1" * 40
+    save_receipt(r, rec)
+
+
+case("receipt naming a non-existent commit with a matching identifier fails", False, unrelated_commit)
+
+
+def no_commit(r):
+    rec = receipt(r)
+    rec.pop("git_commit")
+    rec["swh_id"] = "swh:1:dir:" + "0" * 40
+    save_receipt(r, rec)
+
+
+case("receipt without the commit fails", False, no_commit)
+
+
+def delete_and_commit(r):
+    git(r, "rm", "-q", "scripts/b.py")
+    git(r, "commit", "-q", "-m", "delete")
+
+
+case("tracked file deleted and committed after build fails", False, delete_and_commit)
+case("unexpected extra package member fails (receipt and record matching)", False,
+     lambda r: (rewrite(r, None, add=("notes/extra.txt", b"synthetic extra")), resync(r))[1])
+case("duplicate package member fails", False, lambda r: (rewrite(r, None, dup=True), resync(r))[1])
+case("unlisted file in a reference folder is left out and the package passes", True,
+     before_build=lambda r: (r / "data" / "raw" / "cpi" / "note.txt").write_text("synthetic note"))
+case("reference input changed locally after build fails", False,
+     lambda r: (r / "data" / "raw" / "cpi" / "cpi.xlsx").write_bytes(b"changed"))
+case("model file changed locally after build fails", False,
+     lambda r: (r / "data" / "derived" / "models" / "m.joblib").write_bytes(b"changed"))
+case("build with a reference input differing from its frozen hash is refused", False,
+     before_build=lambda r: (r / "data" / "raw" / "cpi" / "cpi.xlsx").write_bytes(b"changed"))
+case("build with a model differing from its manifest hash is refused", False,
+     before_build=lambda r: (r / "data" / "derived" / "models" / "m.joblib").write_bytes(b"changed"))
+
+
+def unpublished(r):
+    rec = receipt(r)
+    f = rec["files"][0]
+    return lambda _id: {"doi": rec["doi"], "status": "draft",
+                        "files": [{"key": "package.zip", "checksum": "md5:" + f["md5"], "size": f["size"]}]}
+
+
+case("unpublished Zenodo record fails", False, unpublished)
 
 passed = all(v["passed"] for v in results.values())
 for k, v in results.items():
-    print(f"{k:55s} {'ok' if v['passed'] else 'FAILED'}  {v['problems'][:1]}")
+    print(f"{k:72s} {'ok' if v['passed'] else 'FAILED'}  {v['problems'][:1]}")
 out = ROOT / "results" / "validation"
 out.mkdir(parents=True, exist_ok=True)
-(out / "archive_tests.json").write_text(json.dumps({"tests": results, "all_passed": passed,
-                                                    "script_sha256": V.digest(Path(__file__), "sha256")}, indent=1))
+(out / "archive_tests.json").write_text(json.dumps({"tests": {k: {"passed": v["passed"]} for k, v in results.items()},
+                                                    "all_passed": passed,
+                                                    "script_sha256": V.digest(Path(__file__))}, indent=1))
 sys.exit(0 if passed else 1)
