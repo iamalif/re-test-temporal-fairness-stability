@@ -1,0 +1,8 @@
+{
+ "doi": "10.5281/zenodo.24408658",
+ "git_commit": "ff45b43304ad4e14e5c4a9de8ad75b3e847ef5b4",
+ "swh_id": "swh:1:rev:ff45b43304ad4e14e5c4a9de8ad75b3e847ef5b4",
+ "swh_checked_by_hand_on": "2026-11-21",
+ "receipt_sha256": "68b35d90fd29b0cfcce1743b8cba4891d2f050c592acb33b33b9061e89043ae3",
+ "verified": "2026-11-21T01:52:51"
+}

@@ -1,0 +1,18 @@
+{
+ "zenodo_record": "24408658",
+ "doi": "10.5281/zenodo.24408658",
+ "swh_id": "swh:1:rev:ff45b43304ad4e14e5c4a9de8ad75b3e847ef5b4",
+ "swh_checked_by_hand_on": "2026-11-21",
+ "git_commit": "ff45b43304ad4e14e5c4a9de8ad75b3e847ef5b4",
+ "files": [
+  {
+   "name": "package.zip",
+   "local_path": "archive/package.zip",
+   "sha256": "1ada238fcf463900a42f63987a1ad86e4215a148ddc2a5a068ffa941edb9f100",
+   "md5": "cf3492b20204ec90a3e7d2079e926e98",
+   "size": 114310591
+  }
+ ],
+ "built": "2026-11-21T00:54:45",
+ "n_members": 267
+}

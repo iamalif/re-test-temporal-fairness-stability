@@ -584,3 +584,21 @@ Report: docs/qa_independent_round_3_report.md; disposition: docs/qa_independent_
     problems (264 members).
 - Plan wording corrected: status line (D021-D035; two freeze reviews), exposure record (second freeze review),
   Section 3 (2025 PUMS not released). No value, rule or code affecting results changed.
+
+## D036 - 2026-11-21 - Pre-registration archived (Zenodo 10.5281/zenodo.24408658)
+- Final checks of ff45b43 before deposit: diff review (docs/qa_final_freeze_diff_review_2026-11-20.md) and an
+  adversarial review with independent numerical checks and a complete synthetic Stage A/B rehearsal through the
+  frozen models, P1 included (docs/qa_final_adversarial_review_2026-11-20.md): archive, no findings. Before
+  publishing, the verifier's Zenodo reader was tried on an existing public record (DOI, published status, file
+  checksum and size read correctly).
+- Software Heritage: repository saved; revision swh:1:rev:ff45b43304ad4e14e5c4a9de8ad75b3e847ef5b4 checked by hand
+  on 2026-11-21.
+- Package built from ff45b43: 267 members (129 commit files, 40 reference inputs, 98 models), 114,310,591 bytes,
+  SHA-256 1ada238fcf463900a42f63987a1ad86e4215a148ddc2a5a068ffa941edb9f100, MD5 cf3492b20204ec90a3e7d2079e926e98
+  (local MD5 checked against the receipt before publishing).
+- Zenodo record 24408658, DOI 10.5281/zenodo.24408658, version 1.0, public, published 2026-11-21.
+- `verify_archive.py verify --create-flag` passed (commit, package, members, local copies, Zenodo record, SWH
+  revision); prereg/ARCHIVED created (receipt SHA-256 68b35d90fd29b0cfcce1743b8cba4891d2f050c592acb33b33b9061e89043ae3).
+  SHA-256 of the archived plan (prereg/PREREGISTRATION.md at ff45b43), to be quoted in the paper:
+  c6f7cbaf92e52f5ee577b32d165807b8d4e0c0fd2182ec1ab811ed90a82616c5. No ACS person record for 2019 or later had been
+  downloaded or read up to this point. Stage B may begin.
